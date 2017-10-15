@@ -7,51 +7,55 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 mnist = input_data.read_data_sets("/tmp/data", one_hot=True)
 
 #  Defining our model:
-n_nodes_hl1 = 784*2
-n_nodes_hl2 = 784
-n_nodes_hl3 = 392
 n_classes = 10
-batch_size = 100
-
+batch_size = 128
 x = tf.placeholder('float', [None, 784])  # matrix to single array (28x28 mnist)
 y = tf.placeholder('float', [None, 10])
 
 
-def neural_network_model(data):
+def conv2d(x, W):
+    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
-    hidden_1_layer = {'weights': tf.Variable(tf.random_normal([784, n_nodes_hl1])),
-                      'biases': tf.Variable(tf.random_normal([n_nodes_hl1]))}
 
-    hidden_2_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl1, n_nodes_hl2])),
-                      'biases': tf.Variable(tf.random_normal([n_nodes_hl2]))}
+def maxpool2d(x):
+    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+#                               size of window    movement of window
 
-    hidden_3_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl2, n_nodes_hl3])),
-                      'biases': tf.Variable(tf.random_normal([n_nodes_hl3]))}
 
-    output_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl3, n_classes])),
-                    'biases': tf.Variable(tf.random_normal([n_classes]))}
+def convolutional_neural_network(x):
 
-    l1 = tf.add(tf.matmul(data, hidden_1_layer['weights']), hidden_1_layer['biases'])
-    l1 = tf.nn.relu(l1)
+    weigths = {'w_conv1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
+               'w_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+               'w_fc': tf.Variable(tf.random_normal([7*7*64, 1024])),
+               'out': tf.Variable(tf.random_normal([1024, n_classes]))}
 
-    l2 = tf.add(tf.matmul(l1, hidden_2_layer['weights']), hidden_2_layer['biases'])
-    l2 = tf.nn.relu(l2)
+    biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
+              'b_conv2': tf.Variable(tf.random_normal([64])),
+              'b_fc': tf.Variable(tf.random_normal([1024])),
+              'out': tf.Variable(tf.random_normal([n_classes]))}
 
-    l3 = tf.add(tf.matmul(l2, hidden_3_layer['weights']), hidden_3_layer['biases'])
-    l3 = tf.nn.relu(l3)
+    x = tf.reshape(x, shape=[-1, 28, 28, 1])
 
-    output_layer = tf.matmul(l3, output_layer['weights']) + output_layer['biases']
+    conv1 = conv2d(x, weigths['w_conv1'])
+    conv1 = maxpool2d(conv1)
 
-    return output_layer
+    conv2 = conv2d(conv1, weigths['w_conv2'])
+    conv2 = maxpool2d(conv2)
+    fc = tf.reshape(conv2, [-1, 7*7*64])
+    fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
+
+    output = tf.matmul(fc, weigths['out'])+biases['out']
+
+    return output
 
 
 def train_neural_network(x):  # x is input data
 
-    prediction = neural_network_model(x)
+    prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
     # optimizer = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
-    epochs = 25
+    epochs = 10
 
     with tf.Session() as sess:
 
