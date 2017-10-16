@@ -1,5 +1,6 @@
 import tensorflow as tf
 import os
+import datetime
 from tensorflow.examples.tutorials.mnist import input_data
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -8,7 +9,7 @@ mnist = input_data.read_data_sets("/tmp/data", one_hot=True)
 
 #  Defining our model:
 n_classes = 10
-batch_size = 128
+batch_size = 50
 x = tf.placeholder('float', [None, 784])  # matrix to single array (28x28 mnist)
 y = tf.placeholder('float', [None, 10])
 
@@ -36,11 +37,12 @@ def convolutional_neural_network(x):
 
     x = tf.reshape(x, shape=[-1, 28, 28, 1])
 
-    conv1 = conv2d(x, weigths['w_conv1'])
+    conv1 = tf.nn.relu(conv2d(x, weigths['w_conv1'])+biases['b_conv1'])
     conv1 = maxpool2d(conv1)
 
-    conv2 = conv2d(conv1, weigths['w_conv2'])
+    conv2 = tf.nn.relu(conv2d(conv1, weigths['w_conv2'])+biases['b_conv2'])
     conv2 = maxpool2d(conv2)
+
     fc = tf.reshape(conv2, [-1, 7*7*64])
     fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
 
@@ -54,19 +56,24 @@ def train_neural_network(x):  # x is input data
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
-    # optimizer = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
-    epochs = 10
+    epochs = 2
 
     with tf.Session() as sess:
-
+        start_time = datetime.datetime.now()
         sess.run(tf.global_variables_initializer())
+
         for epoch in range(epochs):
             epoch_loss = 0
-            for _ in range(int(mnist.train.num_examples/batch_size)):
+            for k in range(1000):
                 epoch_x, epoch_y = mnist.train.next_batch(batch_size)
                 _, c = sess.run([optimizer, cost], feed_dict={x: epoch_x, y: epoch_y})
                 epoch_loss += c
             print('Epoch ', epoch, " completed out of ", epochs, " with loss: ", epoch_loss)
+
+        time_end = datetime.datetime.now()
+
+        print("Finished training in ", (time_end - start_time))
+
         correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
         print("Accuracy: ", accuracy.eval({x: mnist.test.images, y: mnist.test.labels}))
