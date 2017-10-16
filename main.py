@@ -27,12 +27,12 @@ def convolutional_neural_network(x):
 
     weigths = {'w_conv1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
                'w_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-               'w_fc': tf.Variable(tf.random_normal([7*7*64, 1024])),
-               'out': tf.Variable(tf.random_normal([1024, n_classes]))}
+               # 'w_fc': tf.Variable(tf.random_normal([7*7*64, 1024])),
+               'out': tf.Variable(tf.random_normal([7*7*64, n_classes]))}
 
     biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
               'b_conv2': tf.Variable(tf.random_normal([64])),
-              'b_fc': tf.Variable(tf.random_normal([1024])),
+              # 'b_fc': tf.Variable(tf.random_normal([1024])),
               'out': tf.Variable(tf.random_normal([n_classes]))}
 
     x = tf.reshape(x, shape=[-1, 28, 28, 1])
@@ -44,7 +44,7 @@ def convolutional_neural_network(x):
     conv2 = maxpool2d(conv2)
 
     fc = tf.reshape(conv2, [-1, 7*7*64])
-    fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
+    # fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
 
     output = tf.matmul(fc, weigths['out'])+biases['out']
 
@@ -56,7 +56,7 @@ def train_neural_network(x):  # x is input data
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
-    epochs = 2
+    epochs = 1
 
     with tf.Session() as sess:
         start_time = datetime.datetime.now()
