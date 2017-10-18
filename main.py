@@ -1,5 +1,6 @@
 import tensorflow as tf
 import os
+import sys
 import datetime
 from tensorflow.examples.tutorials.mnist import input_data
 
@@ -12,6 +13,7 @@ n_classes = 10
 batch_size = 50
 x = tf.placeholder('float', [None, 784])  # matrix to single array (28x28 mnist)
 y = tf.placeholder('float', [None, 10])
+keep_prob = tf.placeholder(tf.float32) # for dropout
 
 
 def conv2d(x, W):
@@ -27,12 +29,12 @@ def convolutional_neural_network(x):
 
     weigths = {'w_conv1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
                'w_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-               # 'w_fc': tf.Variable(tf.random_normal([7*7*64, 1024])),
-               'out': tf.Variable(tf.random_normal([7*7*64, n_classes]))}
+               'w_fc': tf.Variable(tf.random_normal([7*7*64, 1024])),
+               'out': tf.Variable(tf.random_normal([1024, n_classes]))}
 
     biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
               'b_conv2': tf.Variable(tf.random_normal([64])),
-              # 'b_fc': tf.Variable(tf.random_normal([1024])),
+              'b_fc': tf.Variable(tf.random_normal([1024])),
               'out': tf.Variable(tf.random_normal([n_classes]))}
 
     x = tf.reshape(x, shape=[-1, 28, 28, 1])
@@ -44,7 +46,8 @@ def convolutional_neural_network(x):
     conv2 = maxpool2d(conv2)
 
     fc = tf.reshape(conv2, [-1, 7*7*64])
-    # fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
+    fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
+    fc = tf.nn.dropout(fc, keep_prob)
 
     output = tf.matmul(fc, weigths['out'])+biases['out']
 
@@ -56,27 +59,36 @@ def train_neural_network(x):  # x is input data
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
-    epochs = 1
+    correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
 
     with tf.Session() as sess:
-        start_time = datetime.datetime.now()
         sess.run(tf.global_variables_initializer())
 
-        for epoch in range(epochs):
-            epoch_loss = 0
-            for k in range(1000):
-                epoch_x, epoch_y = mnist.train.next_batch(batch_size)
-                _, c = sess.run([optimizer, cost], feed_dict={x: epoch_x, y: epoch_y})
-                epoch_loss += c
-            print('Epoch ', epoch, " completed out of ", epochs, " with loss: ", epoch_loss)
+        print("Training...")
+        start_time = datetime.datetime.now()
+
+        for k in range(10000):
+            batch = mnist.train.next_batch(batch_size)
+            sess.run([optimizer, cost], feed_dict={x: batch[0], y: batch[1], keep_prob: 0.8})
+            progress(k, 10000)
+            if k % 100 == 0:
+                train_acc = accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
+                print('\nReached step %d with training accuracy %g\n' % (k, train_acc))
 
         time_end = datetime.datetime.now()
 
-        print("Finished training in ", (time_end - start_time))
+        print("\n\nFinished training in", (time_end - start_time))
+        print("\nTesting...")
+        print("Testing Accuracy: ", accuracy.eval(feed_dict={x: mnist.test.images, y: mnist.test.labels, keep_prob: 1.0}))
 
-        correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-        print("Accuracy: ", accuracy.eval({x: mnist.test.images, y: mnist.test.labels}))
+
+def progress(prog, total):
+    if prog <= 0:
+        return
+    sys.stdout.write('\r')
+    sys.stdout.write("%-50s %d%%" % (u"\u2588"*int(50*((prog+1)/total)), 100*(prog+1)/total))
+    sys.stdout.flush()
 
 
 train_neural_network(x)
