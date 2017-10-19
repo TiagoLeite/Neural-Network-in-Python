@@ -1,0 +1,5 @@
+1) Para rodar:
+
+    python main.py
+
+Testado com python 3.5.4 em Windows 10

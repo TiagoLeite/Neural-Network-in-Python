@@ -8,12 +8,11 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 mnist = input_data.read_data_sets("/tmp/data", one_hot=True)
 
-#  Defining our model:
 n_classes = 10
 batch_size = 50
-x = tf.placeholder('float', [None, 784])  # matrix to single array (28x28 mnist)
+x = tf.placeholder('float', [None, 784])
 y = tf.placeholder('float', [None, 10])
-keep_prob = tf.placeholder(tf.float32) # for dropout
+keep_prob = tf.placeholder(tf.float32)  # for dropout
 
 
 def conv2d(x, W):
@@ -68,10 +67,10 @@ def train_neural_network(x):  # x is input data
         print("Training...")
         start_time = datetime.datetime.now()
 
-        for k in range(10000):
+        for k in range(1000):
             batch = mnist.train.next_batch(batch_size)
             sess.run([optimizer, cost], feed_dict={x: batch[0], y: batch[1], keep_prob: 0.8})
-            progress(k, 10000)
+            progress(k, 1000)
             if k % 100 == 0:
                 train_acc = accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
                 print('\nReached step %d with training accuracy %g\n' % (k, train_acc))
@@ -83,11 +82,11 @@ def train_neural_network(x):  # x is input data
         print("Testing Accuracy: ", accuracy.eval(feed_dict={x: mnist.test.images, y: mnist.test.labels, keep_prob: 1.0}))
 
 
-def progress(prog, total):
+def progress(prog, total):  # to show progress bar
     if prog <= 0:
         return
     sys.stdout.write('\r')
-    sys.stdout.write("%-50s %d%%" % (u"\u2588"*int(50*((prog+1)/total)), 100*(prog+1)/total))
+    sys.stdout.write("%-100s %d%%" % (u"\u2588"*int(100*((prog+1)/total)), 100*(prog+1)/total))
     sys.stdout.flush()
 
 
