@@ -86,7 +86,7 @@ def progress(prog, total):  # to show progress bar
     if prog <= 0:
         return
     sys.stdout.write('\r')
-    sys.stdout.write("%-100s %d%%" % (u"\u2588"*int(100*((prog+1)/total)), 100*(prog+1)/total))
+    sys.stdout.write("[%-100s] %d%%" % (u"\u2588"*int(100*((prog+1)/total)), 100*(prog+1)/total))
     sys.stdout.flush()
 
 
