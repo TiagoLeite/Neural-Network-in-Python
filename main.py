@@ -91,17 +91,14 @@ def train_neural_network(x):  # x is input data
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
-    correct = tf.equal(tf.argmax(prediction, 0), tf.argmax(y, 0))
+    correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        cont = 0
         r1 = 5
-
         start = datetime.datetime.now()
-
-        for j in range(r1*2):
+        for j in range(r1):
 
             print("Epoch: ", j)
 
@@ -111,7 +108,7 @@ def train_neural_network(x):  # x is input data
                 print(file_name)
                 print("\tTraining...")
                 #  start_time = datetime.datetime.now()
-                r = 98
+                r = 100
                 for k in range(r):
                     batch = get_next_batch(k * 100, 100, file_name)
                     # print(len(batch[0][0]))
