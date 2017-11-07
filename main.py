@@ -9,8 +9,8 @@ import numpy as np
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 n_classes = 10
-x = tf.placeholder('float', [1024])
-y = tf.placeholder('float', [n_classes])
+x = tf.placeholder('float', [None, 1024*3])
+y = tf.placeholder('float', [None, n_classes])
 keep_prob = tf.placeholder(tf.float32)  # for dropout
 
 
@@ -41,19 +41,35 @@ def maxpool2d(x):
 #                               size of window    movement of window
 
 
+def get_next_batch(start, batch_size, file_name):
+    dictionary = unplicke(file_name)
+    array_data = dictionary[b'data']
+    labels = dictionary[b'labels']
+    batch = [[], []]
+    for i in range(start, start+batch_size):
+        batch[0].append(array_data[i])
+        # print(len(array_data[i]))
+        label_array = np.zeros(n_classes)
+        label_array[labels[i]] = 1
+        batch[1].append(label_array)
+        # print(label_array)
+    # print("0:", len(batch[0]))
+    return batch
+
+
 def convolutional_neural_network(x):
 
-    weigths = {'w_conv1': tf.Variable(tf.random_normal([3, 3, 1, 64])),
-               'w_conv2': tf.Variable(tf.random_normal([4, 4, 64, 128])),
-               'w_fc': tf.Variable(tf.random_normal([8*8*128, 1024])),
+    weigths = {'w_conv1': tf.Variable(tf.random_normal([5, 5, 3, 32])),
+               'w_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+               'w_fc': tf.Variable(tf.random_normal([8*8*64, 1024])),
                'out': tf.Variable(tf.random_normal([1024, n_classes]))}
 
-    biases = {'b_conv1': tf.Variable(tf.random_normal([64])),
-              'b_conv2': tf.Variable(tf.random_normal([128])),
+    biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
+              'b_conv2': tf.Variable(tf.random_normal([64])),
               'b_fc': tf.Variable(tf.random_normal([1024])),
               'out': tf.Variable(tf.random_normal([n_classes]))}
 
-    x = tf.reshape(x, shape=[-1, 32, 32, 1])
+    x = tf.reshape(x, shape=[-1, 32, 32, 3])
 
     conv1 = tf.nn.relu(conv2d(x, weigths['w_conv1'])+biases['b_conv1'])
     conv1 = maxpool2d(conv1)
@@ -61,7 +77,7 @@ def convolutional_neural_network(x):
     conv2 = tf.nn.relu(conv2d(conv1, weigths['w_conv2'])+biases['b_conv2'])
     conv2 = maxpool2d(conv2)
 
-    fc = tf.reshape(conv2, [-1, 8*8*128])
+    fc = tf.reshape(conv2, [-1, 8*8*64])
     fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
     fc = tf.nn.dropout(fc, keep_prob)
 
@@ -85,44 +101,43 @@ def train_neural_network(x):  # x is input data
 
         start = datetime.datetime.now()
 
-        for j in range(5):
+        for j in range(r1*2):
 
             print("Epoch: ", j)
 
             for p in range(r1):
-
-                dictionary = unplicke('data_batch_'+str(p+1))
                 # print(dictionary)
-                print('\n\tdata_batch_'+str(p+1))
-                array_data = dictionary[b'data']
-                labels = dictionary[b'labels']
-
+                file_name = 'data_batch_'+str(p+1)
+                print(file_name)
                 print("\tTraining...")
                 #  start_time = datetime.datetime.now()
-                r = 10000
+                r = 98
                 for k in range(r):
-
-                    batch = array_data[k]  # batch size = 3072
-                    batch = mix_channels(batch)
-                    # print(batch)
-                    # print(len(batch))
-                    label = [0] * 10
-                    label[labels[k]] = 1
-                    # print(label)
-
-                    sess.run([optimizer, cost], feed_dict={x: batch, y: label, keep_prob: 0.9})
+                    batch = get_next_batch(k * 100, 100, file_name)
+                    # print(len(batch[0][0]))
+                    # print(len(batch[1][0]))
+                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
+                    print(cost.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0}))
                     # print(sess.run([prediction], feed_dict={x: batch, y: label, keep_prob: 0.9}))
                     # progress(cont, r*r1)
-                    cont += 1
-                    '''if k % 100 == 0:
-                        train_acc = accuracy.eval(feed_dict={x: batch, y: label, keep_prob: 1.0})
-                        print('\nReached step %d with training accuracy %g\n' % (k, train_acc))'''
+                    # cont += 1
+                    if k % 10 == 0:
+                        train_acc = accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
+                        print('\nReached step %d with training accuracy %.3f\n' % (k, train_acc))
 
                 #  time_end = datetime.datetime.now()
                 #  print("\n\nFinished training in", (time_end - start_time))
                 #  print("\nTesting...")
 
-        dictionary = unplicke('test_batch')
+        file_name = 'test_batch'
+        print(file_name)
+        print("\tTesting...")
+        #  start_time = datetime.datetime.now()
+        batch = get_next_batch(0, 9000, "test_batch")
+        print(accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0}))
+
+
+        '''dictionary = unplicke('test_batch')
         array_test = dictionary[b'data']
         labels_test = dictionary[b'labels']
         acc = []
@@ -145,7 +160,8 @@ def train_neural_network(x):  # x is input data
 
         print("\nTesting Accuracy: ", mean.eval())
 
-        print("\nTime: ", (end-start))
+        print("\nTime: ", (end-start))'''
+
 
 def progress(prog, total):  # to show progress bar
     if prog <= 0:
