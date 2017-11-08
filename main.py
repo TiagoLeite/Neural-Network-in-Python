@@ -59,13 +59,15 @@ def get_next_batch(start, batch_size, file_name):
 
 def convolutional_neural_network(x):
 
-    weigths = {'w_conv1': tf.Variable(tf.random_normal([5, 5, 3, 32])),
-               'w_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-               'w_fc': tf.Variable(tf.random_normal([8*8*64, 1024])),
+    weigths = {'w_conv1': tf.Variable(tf.random_normal([5, 5, 3, 64])),
+               'w_conv2': tf.Variable(tf.random_normal([5, 5, 64, 128])),
+               'w_conv3': tf.Variable(tf.random_normal([5, 5, 128, 256])),
+               'w_fc': tf.Variable(tf.random_normal([4*4*256, 1024])),
                'out': tf.Variable(tf.random_normal([1024, n_classes]))}
 
-    biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
-              'b_conv2': tf.Variable(tf.random_normal([64])),
+    biases = {'b_conv1': tf.Variable(tf.random_normal([64])),
+              'b_conv2': tf.Variable(tf.random_normal([128])),
+              'b_conv3': tf.Variable(tf.random_normal([256])),
               'b_fc': tf.Variable(tf.random_normal([1024])),
               'out': tf.Variable(tf.random_normal([n_classes]))}
 
@@ -77,7 +79,10 @@ def convolutional_neural_network(x):
     conv2 = tf.nn.relu(conv2d(conv1, weigths['w_conv2'])+biases['b_conv2'])
     conv2 = maxpool2d(conv2)
 
-    fc = tf.reshape(conv2, [-1, 8*8*64])
+    conv3 = tf.nn.relu(conv2d(conv2, weigths['w_conv3']) + biases['b_conv3'])
+    conv3 = maxpool2d(conv3)
+
+    fc = tf.reshape(conv3, [-1, 4*4*256])
     fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
     fc = tf.nn.dropout(fc, keep_prob)
 
@@ -97,8 +102,9 @@ def train_neural_network(x):  # x is input data
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         r1 = 5
-        start = datetime.datetime.now()
-        for j in range(r1):
+        start_time = datetime.datetime.now()
+
+        for j in range(r1*3):
 
             print("Epoch: ", j)
 
@@ -108,31 +114,30 @@ def train_neural_network(x):  # x is input data
                 print(file_name)
                 print("\tTraining...")
                 #  start_time = datetime.datetime.now()
-                r = 100
+                r = 99
                 for k in range(r):
                     batch = get_next_batch(k * 100, 100, file_name)
                     # print(len(batch[0][0]))
                     # print(len(batch[1][0]))
-                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
+                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 0.9})
                     print(cost.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0}))
                     # print(sess.run([prediction], feed_dict={x: batch, y: label, keep_prob: 0.9}))
                     # progress(cont, r*r1)
                     # cont += 1
                     if k % 10 == 0:
                         train_acc = accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
-                        print('\nReached step %d with training accuracy %.3f\n' % (k, train_acc))
+                        print('Reached step %d in epoch %d with training accuracy %.3f' % (k, j,  train_acc))
 
-                #  time_end = datetime.datetime.now()
-                #  print("\n\nFinished training in", (time_end - start_time))
-                #  print("\nTesting...")
+        time_end = datetime.datetime.now()
+        print("\n\nFinished training in", (time_end - start_time))
+        print("\nTesting...")
 
         file_name = 'test_batch'
         print(file_name)
         print("\tTesting...")
         #  start_time = datetime.datetime.now()
-        batch = get_next_batch(0, 9000, "test_batch")
+        batch = get_next_batch(0, 9999, "test_batch")
         print(accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0}))
-
 
         '''dictionary = unplicke('test_batch')
         array_test = dictionary[b'data']
