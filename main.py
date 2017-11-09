@@ -10,7 +10,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 n_classes = 10
 x = tf.placeholder('float', [None, 1024])
 y = tf.placeholder('float', [None, n_classes])
-keep_prob = tf.placeholder(tf.float32)  # for dropout
+keep_prob = tf.placeholder(tf.float32)
 datasets = []
 
 
@@ -39,7 +39,8 @@ def maxpool2d(x):
 #                               size of window    movement of window
 
 
-def load_datasets():
+def load_datasets():  # loads all the train and test files to "datasets" list
+    print("Loading files...")
     for k in range(5):
         file_name = 'data_batch_' + str(k + 1)
         datasets.append(unplicke(file_name))
@@ -64,7 +65,7 @@ def convolutional_neural_network(x):
 
     weigths = {'w_conv1': tf.Variable(tf.random_normal([3, 3, 1, 32])),
                'w_conv2': tf.Variable(tf.random_normal([3, 3, 32, 64])),
-               'w_conv3': tf.Variable(tf.random_normal([3, 3, 64, 128])),
+               'w_conv3': tf.Variable(tf.random_normal([4, 4, 64, 128])),
                'w_fc': tf.Variable(tf.random_normal([4*4*128, 1024])),
                'w_fc2': tf.Variable(tf.random_normal([1024, 256])),
                'out': tf.Variable(tf.random_normal([256, n_classes]))}
@@ -101,6 +102,7 @@ def convolutional_neural_network(x):
 
 def train_neural_network(x):  # x is the input data
 
+    epochs = 1
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
@@ -109,36 +111,26 @@ def train_neural_network(x):  # x is the input data
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        r1 = 5
-        batch_test = get_batch(0, 500, 5)
+        batch_test = get_batch(0, 500, 5)  # 500 images for testing while training so we can see the evolution of accuracy
         start_time = datetime.datetime.now()
         print("Training...")
-        for j in range(5):
-            print("Epoch: ", j)
-            for p in range(r1):
-                r = 200
-                for k in range(r):
-                    batch = get_batch(50 * k, 50, p)
+        for epoch in range(epochs):
+            print("Started epoch: ", (epoch+1), '/', epochs)
+            for file_train in range(5):  # there are 5 files for training
+                batches = 200
+                for k in range(batches):
+                    batch = get_batch(50 * k, 50, file_train)  # gets the next 50 train images
                     sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 0.9})
                     if k % 10 == 0:
-                        print("Partial test accuracy:", k, end=' ')
+                        print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
         time_end = datetime.datetime.now()
         print("\n\nFinished training in", (time_end - start_time))
-        file_name = 'test_batch'
-        print(file_name)
         print("\tTesting...")
-        batch_test = get_batch(0, 10000, 5)
+        file_test = 5  # the 5th element corresponds to the test file in the datasets list
+        batch_test = get_batch(0, 10000, file_test)  # loads the whole test dataset
         print('Testing accuracy =', end=' ')
         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
-
-
-def progress(prog, total):  # to show progress bar
-    if prog <= 0:
-        return
-    sys.stdout.write('\r')
-    sys.stdout.write("%-100s] %d%%" % (u"\u2588"*int(100*((prog+1)/total)), 100*(prog+1)/total))
-    sys.stdout.flush()
 
 
 load_datasets()
