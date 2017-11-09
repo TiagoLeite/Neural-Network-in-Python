@@ -8,20 +8,10 @@ import numpy as np
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 n_classes = 10
-x = tf.placeholder('float', [None, 1024])
+x = tf.placeholder('float', [None, 3*1024])
 y = tf.placeholder('float', [None, n_classes])
 keep_prob = tf.placeholder(tf.float32)
 datasets = []
-
-
-def resize_array(array_rgb):  # converts a 3*1024 length array to 1024 by "mixing" corresponding channels positions
-    size = int(len(array_rgb)/3)
-    array = [float]*size
-    max_value = (np.power(2, 24)-1)
-    for k in range(0, int(size)):
-        array[k] = array_rgb[k] + array_rgb[k+1024]*256 + array_rgb[k+1024*2]*256*256
-        array[k] /= max_value
-    return array
 
 
 def unplicke(file):
@@ -54,7 +44,7 @@ def get_batch(start, batch_size, dataset_index):
     labels = dictionary[b'labels']
     batch = [[], []]  # first for the data array and second for the labels, like mnist
     for i in range(start, start+batch_size):
-        batch[0].append(resize_array(array_data[i]))
+        batch[0].append(array_data[i])
         label_array = np.zeros(n_classes)
         label_array[labels[i]] = 1  # puts the value 1 in the corresponding position
         batch[1].append(label_array)
@@ -63,46 +53,46 @@ def get_batch(start, batch_size, dataset_index):
 
 def convolutional_neural_network(x):
 
-    weigths = {'w_conv1': tf.Variable(tf.random_normal([3, 3, 1, 32])),
-               'w_conv2': tf.Variable(tf.random_normal([3, 3, 32, 64])),
-               'w_conv3': tf.Variable(tf.random_normal([4, 4, 64, 128])),
-               'w_fc': tf.Variable(tf.random_normal([4*4*128, 1024])),
-               'w_fc2': tf.Variable(tf.random_normal([1024, 256])),
-               'out': tf.Variable(tf.random_normal([256, n_classes]))}
+    weigths = {'w_conv1': tf.Variable(tf.truncated_normal([3, 3, 3, 64], stddev=0.1)),
+               'w_conv2': tf.Variable(tf.truncated_normal([3, 3, 64, 128], stddev=0.1)),
+               'w_conv3': tf.Variable(tf.truncated_normal([4, 4, 128, 256], stddev=0.1)),
+               'w_fc': tf.Variable(tf.truncated_normal([4*4*256, 1024], stddev=0.1)),
+               'out': tf.Variable(tf.truncated_normal([1024, n_classes], stddev=0.1))}
 
-    biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
-              'b_conv2': tf.Variable(tf.random_normal([64])),
-              'b_conv3': tf.Variable(tf.random_normal([128])),
-              'b_fc': tf.Variable(tf.random_normal([1024])),
-              'b_fc2': tf.Variable(tf.random_normal([256])),
-              'out': tf.Variable(tf.random_normal([n_classes]))}
+    biases = {'b_conv1': tf.Variable(tf.constant(0.1, shape=[64])),
+              'b_conv2': tf.Variable(tf.constant(0.1, shape=[128])),
+              'b_conv3': tf.Variable(tf.constant(0.1, shape=[256])),
+              'b_fc': tf.Variable(tf.constant(0.1, shape=[1024])),
+              'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))}
 
-    x = tf.reshape(x, shape=[-1, 32, 32, 1])
+    x = tf.reshape(x, shape=[-1, 32, 32, 3])
 
+    # convolutional layer 1:
     conv1 = tf.nn.relu(conv2d(x, weigths['w_conv1'])+biases['b_conv1'])
     conv1 = maxpool2d(conv1)
 
+    # convolutional layer 2:
     conv2 = tf.nn.relu(conv2d(conv1, weigths['w_conv2'])+biases['b_conv2'])
     conv2 = maxpool2d(conv2)
 
+    # convolutional layer 3:
     conv3 = tf.nn.relu(conv2d(conv2, weigths['w_conv3']) + biases['b_conv3'])
     conv3 = maxpool2d(conv3)
 
-    fc = tf.reshape(conv3, [-1, 4*4*128])
+    # fully connected layer
+    fc = tf.reshape(conv3, [-1, 4*4*256])
     fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
     fc = tf.nn.dropout(fc, keep_prob)
 
-    fc2 = tf.nn.relu(tf.matmul(fc, weigths['w_fc2']) + biases['b_fc2'])
-    fc2 = tf.nn.dropout(fc2, keep_prob)
-
-    output = tf.matmul(fc2, weigths['out'])+biases['out']
+    # output layer
+    output = tf.matmul(fc, weigths['out'])+biases['out']
 
     return output
 
 
 def train_neural_network(x):  # x is the input data
 
-    epochs = 1
+    epochs = 3
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
@@ -111,7 +101,7 @@ def train_neural_network(x):  # x is the input data
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        batch_test = get_batch(0, 500, 5)  # 500 images for testing while training so we can see the evolution of accuracy
+        batch_test = get_batch(0, 1000, 5)  # 1000 images for testing while training so we can see the evolution of accuracy
         start_time = datetime.datetime.now()
         print("Training...")
         for epoch in range(epochs):
@@ -125,8 +115,9 @@ def train_neural_network(x):  # x is the input data
                         print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
         time_end = datetime.datetime.now()
-        print("\n\nFinished training in", (time_end - start_time))
-        print("\tTesting...")
+        print("\nFinished training in", (time_end - start_time))
+        print("Epochs: ", epochs)
+        print("Testing...")
         file_test = 5  # the 5th element corresponds to the test file in the datasets list
         batch_test = get_batch(0, 10000, file_test)  # loads the whole test dataset
         print('Testing accuracy =', end=' ')
