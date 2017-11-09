@@ -14,7 +14,7 @@ keep_prob = tf.placeholder(tf.float32)
 datasets = []
 
 
-def resize_array(array_rgb):
+def resize_array(array_rgb):  # converts a 3*1024 length array to 1024 by "mixing" corresponding channels positions
     size = int(len(array_rgb)/3)
     array = [float]*size
     max_value = (np.power(2, 24)-1)
@@ -52,11 +52,11 @@ def get_batch(start, batch_size, dataset_index):
     dictionary = datasets[dataset_index]
     array_data = dictionary[b'data']
     labels = dictionary[b'labels']
-    batch = [[], []]
+    batch = [[], []]  # first for the data array and second for the labels, like mnist
     for i in range(start, start+batch_size):
         batch[0].append(resize_array(array_data[i]))
         label_array = np.zeros(n_classes)
-        label_array[labels[i]] = 1
+        label_array[labels[i]] = 1  # puts the value 1 in the corresponding position
         batch[1].append(label_array)
     return batch
 
