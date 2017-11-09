@@ -12,17 +12,17 @@ n_classes = 10
 x = tf.placeholder('float', [None, 1024])
 y = tf.placeholder('float', [None, n_classes])
 keep_prob = tf.placeholder(tf.float32)  # for dropout
-
-glob_labels = [0]*10
+datasets = []
 
 
 def mix_channels(array_rgb):
     size = int(len(array_rgb)/3)
     array = [float]*size
+    max_value = (np.power(2, 24)-1)
     # print("RGB:\n", array_rgb)
     for k in range(0, int(size)):
         array[k] = array_rgb[k] + array_rgb[k+1024]*256 + array_rgb[k+1024*2]*256*256
-        array[k] /= (np.power(2, 24)-1)
+        array[k] /= max_value
     # print(array)
     # print("max = ", max(array))
     return array
@@ -43,8 +43,16 @@ def maxpool2d(x):
 #                               size of window    movement of window
 
 
-def get_next_batch(start, batch_size, file_name):
-    dictionary = unplicke(file_name)
+def load_datasets():
+    for k in range(5):
+        file_name = 'data_batch_' + str(k + 1)
+        datasets.append(unplicke(file_name))
+    file_name = 'test_batch'
+    datasets.append(unplicke(file_name))
+
+
+def get_batch(start, batch_size, dataset_index):
+    dictionary = datasets[dataset_index]
     array_data = dictionary[b'data']
     labels = dictionary[b'labels']
     batch = [[], []]
@@ -106,19 +114,19 @@ def train_neural_network(x):  # x is input data
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         r1 = 5
-        batch_test = get_next_batch(0, 10000, "test_batch")
+        batch_test = get_batch(0, 10000, 5)
         start_time = datetime.datetime.now()
         for j in range(1):
             print("Epoch: ", j)
             for p in range(r1):
                 # print(dictionary)
-                file_name = 'data_batch_'+str(p+1)
-                print(file_name)
+                # file_name = 'data_batch_'+str(p+1)
+                # print(file_name)
                 print("\tTraining...")
                 #  start_time = datetime.datetime.now()
                 r = 200
                 for k in range(r):
-                    batch = get_next_batch(50*k, 50, file_name)
+                    batch = get_batch(50 * k, 50, p)
                     # print(len(batch[0][0]))
                     # print(len(batch[1][0]))
                     sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
@@ -130,7 +138,7 @@ def train_neural_network(x):  # x is input data
                         # train_acc = accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
                         # print('Reached step %d in epoch %d with training accuracy %.3f' % (p, j,  train_acc))
                         # print('\t', len(batch_test[0]))
-                        print(k, end=' ')
+                        print("Partial test acc:", k, end=' ')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
 
         time_end = datetime.datetime.now()
@@ -141,7 +149,7 @@ def train_neural_network(x):  # x is input data
         print(file_name)
         print("\tTesting...")
         #  start_time = datetime.datetime.now()
-        batch = get_next_batch(0, 10000, "test_batch")
+        batch = get_batch(0, 10000, 5)
         print(len(batch[0]))
         print(accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0}))
 
@@ -179,6 +187,7 @@ def progress(prog, total):  # to show progress bar
     sys.stdout.flush()
 
 
+load_datasets()
 train_neural_network(x)
 
 
