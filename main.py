@@ -72,15 +72,17 @@ def get_batch(start, batch_size, dataset_index):
 def convolutional_neural_network(x):
 
     weigths = {'w_conv1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
-               'w_conv2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-               # 'w_conv3': tf.Variable(tf.random_normal([5, 5, 64, 128])),
-               'w_fc': tf.Variable(tf.random_normal([8*8*64, 1024])),
-               'out': tf.Variable(tf.random_normal([1024, n_classes]))}
+               'w_conv2': tf.Variable(tf.random_normal([4, 4, 32, 64])),
+               'w_conv3': tf.Variable(tf.random_normal([3, 3, 64, 128])),
+               'w_fc': tf.Variable(tf.random_normal([4*4*128, 1024])),
+               'w_fc2': tf.Variable(tf.random_normal([1024, 256])),
+               'out': tf.Variable(tf.random_normal([256, n_classes]))}
 
     biases = {'b_conv1': tf.Variable(tf.random_normal([32])),
               'b_conv2': tf.Variable(tf.random_normal([64])),
-              # 'b_conv3': tf.Variable(tf.random_normal([128])),
+              'b_conv3': tf.Variable(tf.random_normal([128])),
               'b_fc': tf.Variable(tf.random_normal([1024])),
+              'b_fc2': tf.Variable(tf.random_normal([256])),
               'out': tf.Variable(tf.random_normal([n_classes]))}
 
     x = tf.reshape(x, shape=[-1, 32, 32, 1])
@@ -91,14 +93,17 @@ def convolutional_neural_network(x):
     conv2 = tf.nn.relu(conv2d(conv1, weigths['w_conv2'])+biases['b_conv2'])
     conv2 = maxpool2d(conv2)
 
-    # conv3 = tf.nn.relu(conv2d(conv2, weigths['w_conv3']) + biases['b_conv3'])
-    # conv3 = maxpool2d(conv3)
+    conv3 = tf.nn.relu(conv2d(conv2, weigths['w_conv3']) + biases['b_conv3'])
+    conv3 = maxpool2d(conv3)
 
-    fc = tf.reshape(conv2, [-1, 8*8*64])
+    fc = tf.reshape(conv3, [-1, 4*4*128])
     fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
     fc = tf.nn.dropout(fc, keep_prob)
 
-    output = tf.matmul(fc, weigths['out'])+biases['out']
+    fc2 = tf.nn.relu(tf.matmul(fc, weigths['w_fc2']) + biases['b_fc2'])
+    fc2 = tf.nn.dropout(fc2, keep_prob)
+
+    output = tf.matmul(fc2, weigths['out'])+biases['out']
 
     return output
 
@@ -114,9 +119,9 @@ def train_neural_network(x):  # x is input data
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         r1 = 5
-        batch_test = get_batch(0, 10000, 5)
+        batch_test = get_batch(0, 500, 5)
         start_time = datetime.datetime.now()
-        for j in range(1):
+        for j in range(3):
             print("Epoch: ", j)
             for p in range(r1):
                 # print(dictionary)
@@ -134,7 +139,7 @@ def train_neural_network(x):  # x is input data
                     # print(sess.run([prediction], feed_dict={x: batch, y: label, keep_prob: 0.9}))
                     # progress(cont, r*r1)
                     # cont += 1
-                    if k % 5 == 0:
+                    if k % 10 == 0:
                         # train_acc = accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
                         # print('Reached step %d in epoch %d with training accuracy %.3f' % (p, j,  train_acc))
                         # print('\t', len(batch_test[0]))
@@ -143,14 +148,12 @@ def train_neural_network(x):  # x is input data
 
         time_end = datetime.datetime.now()
         print("\n\nFinished training in", (time_end - start_time))
-        print("\nTesting...")
-
         file_name = 'test_batch'
         print(file_name)
         print("\tTesting...")
         #  start_time = datetime.datetime.now()
         batch = get_batch(0, 10000, 5)
-        print(len(batch[0]))
+        print(len(batch[0]), ' tests, accuracy =', end=' ')
         print(accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0}))
 
         '''dictionary = unplicke('test_batch')
