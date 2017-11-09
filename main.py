@@ -108,7 +108,7 @@ def train_neural_network(x):  # x is input data
         r1 = 5
         batch_test = get_next_batch(0, 10000, "test_batch")
         start_time = datetime.datetime.now()
-        for j in range(12):
+        for j in range(1):
             print("Epoch: ", j)
             for p in range(r1):
                 # print(dictionary)
@@ -116,7 +116,7 @@ def train_neural_network(x):  # x is input data
                 print(file_name)
                 print("\tTraining...")
                 #  start_time = datetime.datetime.now()
-                r = 50
+                r = 200
                 for k in range(r):
                     batch = get_next_batch(50*k, 50, file_name)
                     # print(len(batch[0][0]))
