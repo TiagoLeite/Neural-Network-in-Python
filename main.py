@@ -1,6 +1,8 @@
+# Tiago de Miranda Leite, 7595289
+# Atenção: os datasets do cifar-10 nao foram inclusos para nao tornar os arquivos de submissão muito extensos
+
 import tensorflow as tf
 import os
-import sys
 import datetime
 import pickle
 import numpy as np
