@@ -55,15 +55,15 @@ def get_batch(start, batch_size, dataset_index):
 
 def convolutional_neural_network(x):
 
-    weigths = {'w_conv1': tf.Variable(tf.truncated_normal([3, 3, 3, 64], stddev=0.1)),
-               'w_conv2': tf.Variable(tf.truncated_normal([3, 3, 64, 128], stddev=0.1)),
-               'w_conv3': tf.Variable(tf.truncated_normal([4, 4, 128, 256], stddev=0.1)),
-               'w_fc': tf.Variable(tf.truncated_normal([4*4*256, 1024], stddev=0.1)),
+    weigths = {'w_conv1': tf.Variable(tf.truncated_normal([5, 5, 3, 32], stddev=0.1)),
+               'w_conv2': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
+               'w_conv3': tf.Variable(tf.truncated_normal([4, 4, 64, 128], stddev=0.1)),
+               'w_fc': tf.Variable(tf.truncated_normal([4*4*128, 1024], stddev=0.1)),
                'out': tf.Variable(tf.truncated_normal([1024, n_classes], stddev=0.1))}
 
-    biases = {'b_conv1': tf.Variable(tf.constant(0.1, shape=[64])),
-              'b_conv2': tf.Variable(tf.constant(0.1, shape=[128])),
-              'b_conv3': tf.Variable(tf.constant(0.1, shape=[256])),
+    biases = {'b_conv1': tf.Variable(tf.constant(0.1, shape=[32])),
+              'b_conv2': tf.Variable(tf.constant(0.1, shape=[64])),
+              'b_conv3': tf.Variable(tf.constant(0.1, shape=[128])),
               'b_fc': tf.Variable(tf.constant(0.1, shape=[1024])),
               'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))}
 
@@ -82,7 +82,7 @@ def convolutional_neural_network(x):
     conv3 = maxpool2d(conv3)
 
     # fully connected layer
-    fc = tf.reshape(conv3, [-1, 4*4*256])
+    fc = tf.reshape(conv3, [-1, 4*4*128])
     fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
     fc = tf.nn.dropout(fc, keep_prob)
 
@@ -94,7 +94,7 @@ def convolutional_neural_network(x):
 
 def train_neural_network(x):  # x is the input data
 
-    epochs = 3
+    epochs = 30
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
@@ -103,7 +103,7 @@ def train_neural_network(x):  # x is the input data
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        batch_test = get_batch(0, 1000, 5)  # 1000 images for testing while training so we can see the evolution of accuracy
+        batch_test = get_batch(0, 500, 5)  # 500 images for testing while training so we can see the evolution of accuracy
         start_time = datetime.datetime.now()
         print("Training...")
         for epoch in range(epochs):
@@ -112,7 +112,7 @@ def train_neural_network(x):  # x is the input data
                 batches = 200
                 for k in range(batches):
                     batch = get_batch(50 * k, 50, file_train)  # gets the next 50 train images
-                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 0.9})
+                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
                     if k % 10 == 0:
                         print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
