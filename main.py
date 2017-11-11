@@ -56,8 +56,8 @@ def get_batch(start, batch_size, dataset_index):
 def convolutional_neural_network(x):
 
     weigths = {'w_conv1': tf.Variable(tf.truncated_normal([5, 5, 3, 32], stddev=0.1)),
-               'w_conv2': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
-               'w_conv3': tf.Variable(tf.truncated_normal([4, 4, 64, 128], stddev=0.1)),
+               'w_conv2': tf.Variable(tf.truncated_normal([3, 3, 32, 64], stddev=0.1)),
+               'w_conv3': tf.Variable(tf.truncated_normal([3, 3, 64, 128], stddev=0.1)),
                'w_fc': tf.Variable(tf.truncated_normal([4*4*128, 1024], stddev=0.1)),
                'out': tf.Variable(tf.truncated_normal([1024, n_classes], stddev=0.1))}
 
@@ -94,7 +94,7 @@ def convolutional_neural_network(x):
 
 def train_neural_network(x):  # x is the input data
 
-    epochs = 30
+    epochs = 60
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
@@ -112,10 +112,11 @@ def train_neural_network(x):  # x is the input data
                 batches = 200
                 for k in range(batches):
                     batch = get_batch(50 * k, 50, file_train)  # gets the next 50 train images
-                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
+                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 0.5})
                     if k % 10 == 0:
                         print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
+
         time_end = datetime.datetime.now()
         print("\nFinished training in", (time_end - start_time))
         print("Epochs: ", epochs)
@@ -124,6 +125,7 @@ def train_neural_network(x):  # x is the input data
         batch_test = get_batch(0, 10000, file_test)  # loads the whole test dataset
         print('Testing accuracy =', end=' ')
         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
+        print("loss:", cost.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
 
 
 load_datasets()
