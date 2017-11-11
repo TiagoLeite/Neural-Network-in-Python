@@ -84,7 +84,7 @@ def convolutional_neural_network(x):
     # fully connected layer
     fc = tf.reshape(conv3, [-1, 4*4*128])
     fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
-    fc = tf.nn.dropout(fc, keep_prob)
+    # fc = tf.nn.dropout(fc, keep_prob)
 
     # output layer
     output = tf.matmul(fc, weigths['out'])+biases['out']
@@ -103,7 +103,7 @@ def train_neural_network(x):  # x is the input data
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        batch_test = get_batch(0, 500, 5)  # 500 images for testing while training so we can see the evolution of accuracy
+        batch_test = get_batch(0, 1000, 5)  # 500 images for testing while training so we can see the evolution of accuracy
         start_time = datetime.datetime.now()
         print("Training...")
         for epoch in range(epochs):
@@ -112,7 +112,7 @@ def train_neural_network(x):  # x is the input data
                 batches = 200
                 for k in range(batches):
                     batch = get_batch(50 * k, 50, file_train)  # gets the next 50 train images
-                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 0.5})
+                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
                     if k % 10 == 0:
                         print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
@@ -123,6 +123,7 @@ def train_neural_network(x):  # x is the input data
         print("Testing...")
         file_test = 5  # the 5th element corresponds to the test file in the datasets list
         batch_test = get_batch(0, 10000, file_test)  # loads the whole test dataset
+        print("Size test:", len(batch_test[0]))
         print('Testing accuracy =', end=' ')
         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
         print("loss:", cost.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
