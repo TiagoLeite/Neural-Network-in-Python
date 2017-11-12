@@ -1,5 +1,4 @@
 # Tiago de Miranda Leite, 7595289
-# Atenção: os datasets do cifar-10 nao foram inclusos para nao tornar os arquivos de submissão muito extensos
 
 import tensorflow as tf
 import os
@@ -94,7 +93,7 @@ def convolutional_neural_network(x):
 
 def train_neural_network(x):  # x is the input data
 
-    epochs = 60
+    epochs = 1
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
@@ -116,17 +115,20 @@ def train_neural_network(x):  # x is the input data
                     if k % 10 == 0:
                         print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
-
+        saver = tf.train.Saver()
+        save_path = saver.save(sess, "saved_net.ckpt")
+        print("Saved to:", save_path)
         time_end = datetime.datetime.now()
         print("\nFinished training in", (time_end - start_time))
         print("Epochs: ", epochs)
         print("Testing...")
         file_test = 5  # the 5th element corresponds to the test file in the datasets list
-        batch_test = get_batch(0, 10000, file_test)  # loads the whole test dataset
-        print("Size test:", len(batch_test[0]))
-        print('Testing accuracy =', end=' ')
-        print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
-        print("loss:", cost.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
+        for k in range(10):
+            batch_test = get_batch(k*1000, 1000, file_test)
+            print("Size test:", len(batch_test[0]))
+            print('Test %d accuracy =' % k, end=' ')
+            print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
+            print("loss:", cost.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
 
 
 load_datasets()
