@@ -93,7 +93,7 @@ def convolutional_neural_network(x):
 
 def train_neural_network(x):  # x is the input data
 
-    epochs = 1
+    epochs = 100
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
