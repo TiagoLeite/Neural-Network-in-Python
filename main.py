@@ -99,7 +99,7 @@ def train_neural_network(x):  # x is the input data
     optimizer = tf.train.AdamOptimizer().minimize(cost)
     correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-
+    saver = tf.train.Saver()
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         batch_test = get_batch(0, 1000, 5)  # 500 images for testing while training so we can see the evolution of accuracy
@@ -115,9 +115,8 @@ def train_neural_network(x):  # x is the input data
                     if k % 10 == 0:
                         print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
-        saver = tf.train.Saver()
-        save_path = saver.save(sess, "saved_net.ckpt")
-        print("Saved to:", save_path)
+            save_path = saver.save(sess, "save/saved_net.ckpt")
+            print("Saved to:", save_path)
         time_end = datetime.datetime.now()
         print("\nFinished training in", (time_end - start_time))
         print("Epochs: ", epochs)
