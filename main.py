@@ -77,8 +77,8 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
 
-    for i in range(10000):
-        batch = mnist.train.next_batch(50)
+    for i in range(15000):
+        batch = mnist.train.next_batch(100)
         if i % 100 == 0:
             train_acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
             print('Step %d, training accuracy %g' % (i, train_acc))
@@ -128,7 +128,7 @@ with graph.as_default():
 
     # Fully connected layer:
     W_FC1 = tf.constant(W_FC1, name="WFC1")
-    B_FC1 = tf.cos(B_FC1, name="BFC1")
+    B_FC1 = tf.constant(B_FC1, name="BFC1")
 
     FC1 = tf.reshape(H_POOL2, [-1, 7*7*64])
     FC1 = tf.nn.relu(tf.matmul(FC1, W_FC1) + B_FC1)
@@ -138,7 +138,7 @@ with graph.as_default():
     # Read out layer:
     W_FC2 = tf.constant(W_FC2, name="WFC2")
     B_FC2 = tf.constant(B_FC2, name="BFC2")
-    Y_CONV = tf.nn.softmax(tf.matmul(FC1, W_FC2) + B_FC2)
+    Y_CONV = tf.nn.softmax(tf.matmul(FC1, W_FC2) + B_FC2, name='output')
     # no need to Dropout
 
     with tf.Session() as sess:
