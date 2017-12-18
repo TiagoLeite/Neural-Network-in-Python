@@ -77,7 +77,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
 
-    for i in range(15000):
+    for i in range(30000):
         batch = mnist.train.next_batch(100)
         if i % 100 == 0:
             train_acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
@@ -86,7 +86,7 @@ with tf.Session() as sess:
 
     print("\tTesting...")
     partials = []
-    for k in range(6):
+    for k in range(60):
         batch = mnist.test.next_batch(1000)
         res = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
         partials.append(res)
@@ -154,7 +154,7 @@ with graph.as_default():
 
         print("\nSave file with acc = %g" % accuracy.eval({x_2: mnist.test.images, y_train: mnist.test.labels}, sess))
         partials = []
-        for _ in range(6):
+        for _ in range(10):
             batch = mnist.test.next_batch(1000)
             res = accuracy.eval(feed_dict={x_2: batch[0], y_train: batch[1]})
             partials.append(res)
