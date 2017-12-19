@@ -1,0 +1,39 @@
+def convolutional_neural_network(image_input):
+
+    weigths = {'w_conv1': tf.Variable(tf.truncated_normal([5, 5, 3, 32], stddev=0.1)),
+               'w_conv2': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
+               'w_conv3': tf.Variable(tf.truncated_normal([5, 5, 64, 128], stddev=0.1)),
+               'w_fc': tf.Variable(tf.truncated_normal([4*4*128, 512], stddev=0.1)),
+               'out': tf.Variable(tf.truncated_normal([512, n_classes], stddev=0.1))}
+
+    biases = {'b_conv1': tf.Variable(tf.constant(0.1, shape=[32])),
+              'b_conv2': tf.Variable(tf.constant(0.1, shape=[64])),
+              'b_conv3': tf.Variable(tf.constant(0.1, shape=[128])),
+              'b_fc': tf.Variable(tf.constant(0.1, shape=[512])),
+              'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))}
+
+    image_input = tf.reshape(image_input, shape=[-1, 32, 32, 3])
+
+    # convolutional layer 1:
+    conv1 = tf.nn.relu(conv2d(image_input, weigths['w_conv1']) + biases['b_conv1'])
+    conv1_pool = maxpool2d(conv1)
+
+    # convolutional layer 2:
+    conv2 = tf.nn.relu(conv2d(conv1_pool, weigths['w_conv2'])+biases['b_conv2'])
+    conv2_pool = maxpool2d(conv2)
+
+    # convolutional layer 3:
+    conv3 = tf.nn.relu(conv2d(conv2_pool, weigths['w_conv3']) + biases['b_conv3'])
+    conv3_pool = maxpool2d(conv3)
+    conv3_flat = tf.reshape(conv3_pool, [-1, 4*4*128])
+    # conv3_drop = tf.nn.dropout(conv3_flat, keep_prob)
+
+    # fully connected layer
+    # fc = tf.reshape(conv3, [-1, 4*4*128])
+    fc = tf.nn.relu(tf.matmul(conv3_flat, weigths['w_fc']) + biases['b_fc'])
+    # fc_drop = tf.nn.dropout(fc, keep_prob)
+
+    # output layer
+    output = tf.matmul(fc, weigths['out'])+biases['out']
+
+    return output

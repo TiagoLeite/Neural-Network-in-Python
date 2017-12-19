@@ -13,6 +13,8 @@ x = tf.placeholder('float', [None, 3*1024])
 y = tf.placeholder('float', [None, n_classes])
 keep_prob = tf.placeholder(tf.float32)
 datasets = []
+C1, C2, C3 = 30, 50, 80
+F1 = 500
 
 
 def unplicke(file):
@@ -21,12 +23,12 @@ def unplicke(file):
     return dictionary
 
 
-def conv2d(x, W):
-    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+def conv2d(input_data, W):
+    return tf.nn.conv2d(input_data, W, strides=[1, 1, 1, 1], padding='SAME')
 
 
-def maxpool2d(x):
-    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+def maxpool2d(input_data):
+    return tf.nn.max_pool(input_data, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 #                               size of window    movement of window
 
 
@@ -52,51 +54,46 @@ def get_batch(start, batch_size, dataset_index):
     return batch
 
 
-def convolutional_neural_network(x):
+def weight_variable(shape):
+    return tf.Variable(tf.truncated_normal(shape, stddev=0.1))
 
-    weigths = {'w_conv1': tf.Variable(tf.truncated_normal([5, 5, 3, 32], stddev=0.1)),
-               'w_conv2': tf.Variable(tf.truncated_normal([3, 3, 32, 64], stddev=0.1)),
-               'w_conv3': tf.Variable(tf.truncated_normal([3, 3, 64, 128], stddev=0.1)),
-               'w_fc': tf.Variable(tf.truncated_normal([4*4*128, 1024], stddev=0.1)),
-               'out': tf.Variable(tf.truncated_normal([1024, n_classes], stddev=0.1))}
 
-    biases = {'b_conv1': tf.Variable(tf.constant(0.1, shape=[32])),
-              'b_conv2': tf.Variable(tf.constant(0.1, shape=[64])),
-              'b_conv3': tf.Variable(tf.constant(0.1, shape=[128])),
-              'b_fc': tf.Variable(tf.constant(0.1, shape=[1024])),
-              'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))}
+def bias_variable(shape):
+    return tf.Variable(tf.constant(0.1, shape=shape))
 
-    x = tf.reshape(x, shape=[-1, 32, 32, 3])
 
-    # convolutional layer 1:
-    conv1 = tf.nn.relu(conv2d(x, weigths['w_conv1'])+biases['b_conv1'])
-    conv1 = maxpool2d(conv1)
+def conv_layer(input_data, shape):
+    W = weight_variable(shape=shape)
+    b = bias_variable(shape=[shape[3]])
+    return tf.nn.relu(conv2d(input_data, W) + b)
 
-    # convolutional layer 2:
-    conv2 = tf.nn.relu(conv2d(conv1, weigths['w_conv2'])+biases['b_conv2'])
-    conv2 = maxpool2d(conv2)
 
-    # convolutional layer 3:
-    conv3 = tf.nn.relu(conv2d(conv2, weigths['w_conv3']) + biases['b_conv3'])
-    conv3 = maxpool2d(conv3)
+def full_layer(input_data, out_size):
+    in_size = int(input_data.get_shape()[1])
+    W = weight_variable([in_size, out_size])
+    b = bias_variable([out_size])
+    return tf.matmul(input_data, W) + b
 
-    # fully connected layer
-    fc = tf.reshape(conv3, [-1, 4*4*128])
-    fc = tf.nn.relu(tf.matmul(fc, weigths['w_fc']) + biases['b_fc'])
-    # fc = tf.nn.dropout(fc, keep_prob)
 
-    # output layer
-    output = tf.matmul(fc, weigths['out'])+biases['out']
-
-    return output
+def new_model(x):
+    x_image = tf.reshape(x, [-1, 32, 32, 3])
+    conv1 = conv_layer(x_image, shape=[5, 5, 3, 32])
+    conv1_pool = maxpool2d(conv1)
+    conv2 = conv_layer(conv1_pool, shape=[5, 5, 32, 64])
+    conv2_pool = maxpool2d(conv2)
+    conv2_flat = tf.reshape(conv2_pool, shape=[-1, 8 * 8 * 64])
+    full_1 = tf.nn.relu(full_layer(conv2_flat, 1024))
+    full1_drop = tf.nn.dropout(full_1, keep_prob=keep_prob)
+    y_conv = full_layer(full1_drop, 10)
+    return y_conv
 
 
 def train_neural_network(x):  # x is the input data
-
-    epochs = 100
-    prediction = convolutional_neural_network(x)
+    epochs = 20
+    # prediction = convolutional_neural_network(x)
+    prediction = new_model(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
-    optimizer = tf.train.AdamOptimizer().minimize(cost)
+    optimizer = tf.train.AdamOptimizer(1e-3).minimize(cost)
     correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
     saver = tf.train.Saver()
@@ -108,12 +105,12 @@ def train_neural_network(x):  # x is the input data
         for epoch in range(epochs):
             print("Started epoch: ", (epoch+1), '/', epochs)
             for file_train in range(5):  # there are 5 files for training
-                batches = 200
+                batches = 100
                 for k in range(batches):
-                    batch = get_batch(50 * k, 50, file_train)  # gets the next 50 train images
-                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
+                    batch = get_batch(100 * k, 100, file_train)  # gets the next 50 train images
+                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 0.5})
                     if k % 10 == 0:
-                        print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
+                        print('Reached step %3d' % k, '(of 100) of train file', (file_train+1), '(of 5) with accuracy ', end='')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
             save_path = saver.save(sess, "save/saved_net.ckpt")
             print("Saved to:", save_path)
