@@ -61,29 +61,32 @@ def convolutional_neural_network(x):
                'w_fc2': tf.Variable(tf.truncated_normal([512, 128], stddev=0.1)),
                'out': tf.Variable(tf.truncated_normal([128, n_classes], stddev=0.1))}
 
-    biases = {'b_conv1': tf.Variable(tf.random_uniform([32], -.01, .01, dtype='float32')),
-              'b_conv2': tf.Variable(tf.random_uniform([64], -.01, .01, dtype='float32')),
-              'b_conv3': tf.Variable(tf.random_uniform([128], -.01, .01, dtype='float32')),
-              'b_fc': tf.Variable(tf.random_uniform([512], -.01, .01, dtype='float32')),
-              'b_fc2': tf.Variable(tf.random_uniform([128], -.01, .01, dtype='float32')),
-              'out': tf.Variable(tf.random_uniform([n_classes], -.01, .01, dtype='float32'))}
+    biases = {'b_conv1': tf.Variable(tf.constant(0.1, dtype='float32')),
+              'b_conv2': tf.Variable(tf.constant(0.1, dtype='float32')),
+              'b_conv3': tf.Variable(tf.constant(0.1, dtype='float32')),
+              'b_fc': tf.Variable(tf.constant(0.1, dtype='float32')),
+              'b_fc2': tf.Variable(tf.constant(0.1, dtype='float32')),
+              'out': tf.Variable(tf.constant(0.1, dtype='float32'))}
 
     x = tf.reshape(x, shape=[-1, 32, 32, 3])
 
     # convolutional layer 1:
     conv1 = tf.nn.relu(conv2d(x, weights['w_conv1'])+biases['b_conv1'])
     conv1_pool = maxpool2d(conv1)
+    norm1 = tf.nn.lrn(conv1_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
 
     # convolutional layer 2:
-    conv2 = tf.nn.relu(conv2d(conv1_pool, weights['w_conv2'])+biases['b_conv2'])
-    conv2_pool = maxpool2d(conv2)
+    conv2 = tf.nn.relu(conv2d(norm1, weights['w_conv2'])+biases['b_conv2'])
+    norm2 = tf.nn.lrn(conv2, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
+    conv2_pool = maxpool2d(norm2)
 
     # convolutional layer 3:
     conv3 = tf.nn.relu(conv2d(conv2_pool, weights['w_conv3']) + biases['b_conv3'])
     conv3_pool = maxpool2d(conv3)
+    norm3 = tf.nn.lrn(conv3_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
 
     # fully connected layer
-    fc = tf.reshape(conv3_pool, [-1, 4*4*128])
+    fc = tf.reshape(norm3, [-1, 4*4*128])
     fc_out = tf.nn.relu(tf.matmul(fc, weights['w_fc']) + biases['b_fc'])
     fc_drop = tf.nn.dropout(fc_out, keep_prob)
 
@@ -113,9 +116,9 @@ def train_neural_network(x):  # x is the input data
         for epoch in range(epochs):
             print("Started epoch: ", (epoch+1), '/', epochs)
             for file_train in range(5):  # there are 5 files for training
-                batches = 200
+                batches = 100
                 for k in range(batches):
-                    batch = get_batch(50 * k, 50, file_train)  # gets the next 50 train images
+                    batch = get_batch(100 * k, 100, file_train)  # gets the next 50 train images
                     sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 0.5})
                     if k % 20 == 0:
                         print('Reached step %3d' % k, '(of %d)' % batches, 'of train file', (file_train+1), '(of 5) with accuracy ', end='')
