@@ -26,7 +26,7 @@ def conv2d(x, W):
 
 
 def maxpool2d(x):
-    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    return tf.nn.max_pool(x, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')
 #                               size of window    movement of window
 
 
@@ -56,8 +56,8 @@ def convolutional_neural_network(x):
 
     weights = {'w_conv1': tf.Variable(tf.truncated_normal([5, 5, 3, 32], stddev=0.1)),
                'w_conv2': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
-               'w_conv3': tf.Variable(tf.truncated_normal([3, 3, 64, 128], stddev=0.1)),
-               'w_fc': tf.Variable(tf.truncated_normal([4*4*128, 512], stddev=0.1)),
+               'w_conv3': tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1)),
+               'w_fc': tf.Variable(tf.truncated_normal([4*4*64, 512], stddev=0.1)),
                'w_fc2': tf.Variable(tf.truncated_normal([512, 128], stddev=0.1)),
                'out': tf.Variable(tf.truncated_normal([128, n_classes], stddev=0.1))}
 
@@ -73,20 +73,20 @@ def convolutional_neural_network(x):
     # convolutional layer 1:
     conv1 = tf.nn.relu(conv2d(x, weights['w_conv1'])+biases['b_conv1'])
     conv1_pool = maxpool2d(conv1)
-    norm1 = tf.nn.lrn(conv1_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
+    norm1 = tf.nn.lrn(conv1_pool, depth_radius=4, bias=1.0, alpha=1e-3/9.0, beta=0.75, name='norm2')
 
     # convolutional layer 2:
     conv2 = tf.nn.relu(conv2d(norm1, weights['w_conv2'])+biases['b_conv2'])
-    norm2 = tf.nn.lrn(conv2, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
+    norm2 = tf.nn.lrn(conv2, depth_radius=4, bias=1.0, alpha=1e-3/9.0, beta=0.75, name='norm2')
     conv2_pool = maxpool2d(norm2)
 
     # convolutional layer 3:
     conv3 = tf.nn.relu(conv2d(conv2_pool, weights['w_conv3']) + biases['b_conv3'])
     conv3_pool = maxpool2d(conv3)
-    norm3 = tf.nn.lrn(conv3_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
+    norm3 = tf.nn.lrn(conv3_pool, depth_radius=4, bias=1.0, alpha=1e-3/9.0, beta=0.75, name='norm2')
 
     # fully connected layer
-    fc = tf.reshape(norm3, [-1, 4*4*128])
+    fc = tf.reshape(norm3, [-1, 4*4*64])
     fc_out = tf.nn.relu(tf.matmul(fc, weights['w_fc']) + biases['b_fc'])
     fc_drop = tf.nn.dropout(fc_out, keep_prob)
 
@@ -104,10 +104,9 @@ def train_neural_network(x):  # x is the input data
     epochs = 40
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
-    optimizer = tf.train.AdamOptimizer().minimize(cost)
+    optimizer = tf.train.RMSPropOptimizer(5*1e-4).minimize(cost)
     correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-    # saver = tf.train.Saver()
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         batch_test = get_batch(0, 1000, 5)  # 500 images for testing while training so we can see the evolution of accuracy
@@ -123,8 +122,6 @@ def train_neural_network(x):  # x is the input data
                     if k % 20 == 0:
                         print('Reached step %3d' % k, '(of %d)' % batches, 'of train file', (file_train+1), '(of 5) with accuracy ', end='')
                         print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0}))
-            # save_path = saver.save(sess, "save/saved_net.ckpt")
-            # print("Saved to:", save_path)
         time_end = datetime.datetime.now()
         print("\nFinished training in", (time_end - start_time))
         print("Epochs: ", epochs)
