@@ -26,7 +26,7 @@ def conv2d(x, W):
 
 
 def maxpool2d(x):
-    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    return tf.nn.max_pool(x, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')
 #                               size of window    movement of window
 
 
@@ -95,7 +95,7 @@ def convolutional_neural_network(x):
     norm3 = tf.nn.lrn(conv3_pool, depth_radius=4, bias=2.0, alpha=1e-4, beta=0.75, name='norm2')
 
     # fully connected layer
-    fc = tf.reshape(norm3, [-1, 4*4*128])
+    fc = tf.reshape(norm3, [-1, 4*4*64])
     fc_out = tf.nn.relu(tf.matmul(fc, weights['w_fc']) + biases['b_fc'])
     fc_drop = tf.nn.dropout(fc_out, keep_prob)
 
@@ -113,7 +113,7 @@ def train_neural_network(x):  # x is the input data
     epochs = 20
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
-    optimizer = tf.train.AdamOptimizer().minimize(cost)
+    optimizer = tf.train.RMSPropOptimizer(5*1e-4).minimize(cost)
     correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
     with tf.Session() as sess:
