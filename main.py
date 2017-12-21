@@ -54,13 +54,13 @@ def get_batch(start, batch_size, dataset_index):
 
 def convolutional_neural_network(x):
 
-    weights = {'w_conv1': tf.Variable(tf.truncated_normal([3, 3, 3, 16], stddev=0.1)),
-               'w_conv1_2': tf.Variable(tf.truncated_normal([3, 3, 16, 16], stddev=0.1)),
-               'w_conv2': tf.Variable(tf.truncated_normal([3, 3, 16, 32], stddev=0.1)),
-               'w_conv2_2': tf.Variable(tf.truncated_normal([3, 3, 32, 32], stddev=0.1)),
+    weights = {'w_conv1': tf.Variable(tf.truncated_normal([3, 3, 3, 32], stddev=0.1)),
+               'w_conv1_2': tf.Variable(tf.truncated_normal([3, 3, 32, 32], stddev=0.1)),
+               'w_conv2': tf.Variable(tf.truncated_normal([3, 3, 32, 64], stddev=0.1)),
+               'w_conv2_2': tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1)),
                'w_conv3': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
                'w_conv3_2': tf.Variable(tf.truncated_normal([5, 5, 64, 64], stddev=0.1)),
-               'w_fc': tf.Variable(tf.truncated_normal([4*4*64, 1024], stddev=0.1)),
+               'w_fc': tf.Variable(tf.truncated_normal([8*8*64, 1024], stddev=0.1)),
                'w_fc2': tf.Variable(tf.truncated_normal([1024, 512], stddev=0.1)),
                'out': tf.Variable(tf.truncated_normal([512, n_classes], stddev=0.1))}
 
@@ -92,13 +92,13 @@ def convolutional_neural_network(x):
     norm2 = tf.nn.lrn(conv2_2_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
 
     # convolutional layer 3:
-    conv3 = tf.nn.relu(conv2d(norm2, weights['w_conv3']) + biases['b_conv3'])
-    conv3_2 = tf.nn.relu(conv2d(conv3, weights['w_conv3_2']) + biases['b_conv3_2'])
-    conv3_2_pool = maxpool2d(conv3_2)
-    norm3 = tf.nn.lrn(conv3_2_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
+    # conv3 = tf.nn.relu(conv2d(norm2, weights['w_conv3']) + biases['b_conv3'])
+    # conv3_2 = tf.nn.relu(conv2d(conv3, weights['w_conv3_2']) + biases['b_conv3_2'])
+    # conv3_2_pool = maxpool2d(conv3_2)
+    # norm3 = tf.nn.lrn(conv3_2_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
 
     # fully connected layer
-    fc = tf.reshape(norm3, [-1, 4*4*64])
+    fc = tf.reshape(norm2, [-1, 8*8*64])
     fc_out = tf.nn.relu(tf.matmul(fc, weights['w_fc']) + biases['b_fc'])
     fc_drop = tf.nn.dropout(fc_out, keep_prob)
 
