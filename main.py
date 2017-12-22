@@ -26,7 +26,7 @@ def conv2d(x, W):
 
 
 def maxpool2d(x):
-    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    return tf.nn.max_pool(x, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')
 #                               size of window    movement of window
 
 
@@ -54,15 +54,15 @@ def get_batch(start, batch_size, dataset_index):
 
 def convolutional_neural_network(x):
 
-    weights = {'w_conv1': tf.Variable(tf.truncated_normal([3, 3, 3, 32], stddev=0.1)),
-               'w_conv1_2': tf.Variable(tf.truncated_normal([3, 3, 32, 32], stddev=0.1)),
-               'w_conv2': tf.Variable(tf.truncated_normal([3, 3, 32, 64], stddev=0.1)),
-               'w_conv2_2': tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.1)),
-               'w_conv3': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
-               'w_conv3_2': tf.Variable(tf.truncated_normal([5, 5, 64, 64], stddev=0.1)),
-               'w_fc': tf.Variable(tf.truncated_normal([8*8*64, 1024], stddev=0.1)),
-               'w_fc2': tf.Variable(tf.truncated_normal([1024, 512], stddev=0.1)),
-               'out': tf.Variable(tf.truncated_normal([512, n_classes], stddev=0.1))}
+    weights = {'w_conv1': tf.Variable(tf.truncated_normal([5, 5, 3, 32], stddev=0.05)),
+               'w_conv1_2': tf.Variable(tf.truncated_normal([3, 3, 32, 32], stddev=0.05)),
+               'w_conv2': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.05)),
+               'w_conv2_2': tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.05)),
+               'w_conv3': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.05)),
+               'w_conv3_2': tf.Variable(tf.truncated_normal([5, 5, 64, 64], stddev=0.05)),
+               'w_fc': tf.Variable(tf.truncated_normal([8*8*64, 1024], stddev=0.05)),
+               'w_fc2': tf.Variable(tf.truncated_normal([1024, 512], stddev=0.05)),
+               'out': tf.Variable(tf.truncated_normal([512, n_classes], stddev=0.05))}
 
     biases = {'b_conv1': tf.Variable(tf.constant(0.05, dtype='float32')),
               'b_conv1_2': tf.Variable(tf.constant(0.05, dtype='float32')),
@@ -79,41 +79,38 @@ def convolutional_neural_network(x):
     # convolutional layer 1:
     conv1 = tf.nn.relu(conv2d(x, weights['w_conv1'])+biases['b_conv1'])
     # conv1_pool = maxpool2d(conv1)
-    conv1_1 = tf.nn.relu(conv2d(conv1, weights['w_conv1_2']) + biases['b_conv1_2'])
-    conv1_1_pool = maxpool2d(conv1_1)
-    norm1 = tf.nn.lrn(conv1_1_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
-
+    norm1 = tf.nn.lrn(conv1, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
+    conv1_1 = tf.nn.relu(conv2d(norm1, weights['w_conv1_2']) + biases['b_conv1_2'])
+    norm1_1 = tf.nn.lrn(conv1_1, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
+    conv1_1_pool = maxpool2d(norm1_1)
     # convolutional layer 2:
-    conv2 = tf.nn.relu(conv2d(norm1, weights['w_conv2'])+biases['b_conv2'])
-    # norm2 = tf.nn.lrn(conv2, depth_radius=4, bias=2.0, alpha=1e-4, beta=0.75, name='norm2')
+    conv2 = tf.nn.relu(conv2d(conv1_1_pool, weights['w_conv2'])+biases['b_conv2'])
+    norm2 = tf.nn.lrn(conv2, depth_radius=4, bias=2.0, alpha=1e-4, beta=0.75, name='norm2')
     # conv2_pool = maxpool2d(norm2)
-    conv2_2 = tf.nn.relu(conv2d(conv2, weights['w_conv2_2']) + biases['b_conv2_2'])
-    conv2_2_pool = maxpool2d(conv2_2)
-    norm2 = tf.nn.lrn(conv2_2_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
-
+    conv2_2 = tf.nn.relu(conv2d(norm2, weights['w_conv2_2']) + biases['b_conv2_2'])
+    norm2_2 = tf.nn.lrn(conv2_2, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
+    conv2_2_pool = maxpool2d(norm2_2)
     # convolutional layer 3:
     # conv3 = tf.nn.relu(conv2d(norm2, weights['w_conv3']) + biases['b_conv3'])
     # conv3_2 = tf.nn.relu(conv2d(conv3, weights['w_conv3_2']) + biases['b_conv3_2'])
     # conv3_2_pool = maxpool2d(conv3_2)
     # norm3 = tf.nn.lrn(conv3_2_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
-
     # fully connected layer
-    fc = tf.reshape(norm2, [-1, 8*8*64])
+    fc = tf.reshape(conv2_2_pool, [-1, 8*8*64])
     fc_out = tf.nn.relu(tf.matmul(fc, weights['w_fc']) + biases['b_fc'])
     fc_drop = tf.nn.dropout(fc_out, keep_prob)
-
     # fully connected layer 2
     fc2 = tf.nn.relu(tf.matmul(fc_drop, weights['w_fc2']) + biases['b_fc2'])
     fc2_drop = tf.nn.dropout(fc2, keep_prob)
     # output layer
-    output = tf.matmul(fc2_drop, weights['out'])+biases['out']
+    output = tf.nn.softmax(tf.matmul(fc2_drop, weights['out'])+biases['out'])
 
     return output
 
 
 def train_neural_network(x):  # x is the input data
 
-    epochs = 40
+    epochs = 60
     prediction = convolutional_neural_network(x)
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
     optimizer = tf.train.RMSPropOptimizer(5*1e-4).minimize(cost)
