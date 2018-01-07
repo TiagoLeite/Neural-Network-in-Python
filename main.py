@@ -9,8 +9,28 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 EXPORT_DIR = './model'
 
+
+def read_data(start, end):
+    formatted_data = [[], []]
+    for k in range(start, end):
+        name = 'bananas/{name}.jpg'.format(name=(k + 1))
+        img = Image.open(name)
+        img_array = (np.array(img).reshape(100*120*3))/255.0
+        formatted_data[0].append(img_array)
+        formatted_data[1].append([0, 1])
+
+        name = 'no_bananas/{name}.jpg'.format(name=(k + 1))
+        img = Image.open(name)
+        img_array = (np.array(img).reshape(100 * 120 * 3)) / 255.0
+        formatted_data[0].append(img_array)
+        formatted_data[1].append([1, 0])
+
+    return formatted_data
+
+
 if os.path.exists(EXPORT_DIR):
     shutil.rmtree(EXPORT_DIR)
+
 
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.1)

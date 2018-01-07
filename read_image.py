@@ -1,7 +1,7 @@
 import numpy as np
 from PIL import Image
 
-image = Image.open('images/Sample028/img028-001.png').convert('L')
+image = Image.open('handwritten/Sample028/img028-001.png').convert('L')
 image = image.resize((128, 128))
 image.show()
 array_image = np.array(image)
