@@ -1,6 +1,8 @@
 from tensorflow.examples.tutorials.mnist import input_data
 import tensorflow as tf
 import shutil
+from PIL import Image
+import numpy as np
 from tensorflow.python.tools import freeze_graph
 from tensorflow.python.tools import optimize_for_inference_lib
 import os
