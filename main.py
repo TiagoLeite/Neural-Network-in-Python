@@ -37,6 +37,7 @@ mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 x = tf.placeholder(tf.float32, shape=[None, 784])
 y_ = tf.placeholder(tf.float32, shape=[None, 10])
 
+# === Model ===
 # Convolutional Layer 1:
 W_conv1 = weight_variable([5, 5, 1, 32])
 b_conv1 = bias_variable([32])
