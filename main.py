@@ -8,8 +8,9 @@ from tensorflow.python.tools import optimize_for_inference_lib
 import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
 EXPORT_DIR = './model'
+if os.path.exists(EXPORT_DIR):
+    shutil.rmtree(EXPORT_DIR)
 
 
 def read_data(start, end):
@@ -28,10 +29,6 @@ def read_data(start, end):
         formatted_data[1].append([1, 0])
 
     return formatted_data
-
-
-if os.path.exists(EXPORT_DIR):
-    shutil.rmtree(EXPORT_DIR)
 
 
 def weight_variable(shape):
@@ -60,6 +57,7 @@ x = tf.placeholder(tf.float32, shape=[None, 784])
 y_ = tf.placeholder(tf.float32, shape=[None, 10])
 
 # === Model ===
+
 # Convolutional Layer 1:
 W_conv1 = weight_variable([5, 5, 1, 32])
 b_conv1 = bias_variable([32])
@@ -89,8 +87,10 @@ b_fc2 = bias_variable([10])
 
 y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv))
-train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+# =========
+
+loss_cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv))
+train_step = tf.train.AdamOptimizer(1e-4).minimize(loss_cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
@@ -100,7 +100,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
 
-    for i in range(30000):
+    for i in range(1000):
         batch = mnist.train.next_batch(100)
         if i % 100 == 0:
             train_acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
@@ -109,12 +109,12 @@ with tf.Session() as sess:
 
     print("\tTesting...")
     partials = []
-    for k in range(60):
+    for _ in range(10):
         batch = mnist.test.next_batch(1000)
         res = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
         partials.append(res)
-        print("Testing Accuracy: ", res)
-    # print(partials)
+        # print("Testing Accuracy: ", res)
+    print(partials)
     print("Avg:", tf.reduce_mean(partials).eval())
 
     W_C1 = W_conv1.eval(sess)
@@ -133,7 +133,7 @@ graph = tf.Graph()
 
 with graph.as_default():
 
-    x_2 = tf.placeholder('float', shape=[None, 28*28], name='input')
+    x_2 = tf.placeholder('float32', shape=[None, 28*28], name='input')
     x_image = tf.reshape(x_2, [-1, 28, 28, 1])
 
     # Convolutional Layer 1:
@@ -175,7 +175,7 @@ with graph.as_default():
         correct_prediction = tf.equal(tf.argmax(Y_CONV, 1), tf.argmax(y_train, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
 
-        print("\nSave file with acc = %g" % accuracy.eval({x_2: mnist.test.images, y_train: mnist.test.labels}, sess))
+        # print("\nSave file with acc = %g" % accuracy.eval({x_2: mnist.test.images, y_train: mnist.test.labels}, sess))
         partials = []
         for _ in range(10):
             batch = mnist.test.next_batch(1000)

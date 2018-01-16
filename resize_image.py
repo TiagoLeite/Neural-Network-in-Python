@@ -2,7 +2,7 @@ import os
 import sys
 from PIL import Image
 
-size = 100, 120
+size = 28, 28
 
 
 def resize_image(input_image_path, output_image_path):
@@ -18,7 +18,10 @@ def resize_image(input_image_path, output_image_path):
     # resized_image.show()
     resized_image.save(output_image_path)
 
+name = 'digit.png'
+resize_image(name, name)
 
+'''
 for k in range(1164):
     name = 'no_bananas/{name}.jpg'.format(name=(k+1))
     resize_image(name, name)
@@ -26,3 +29,4 @@ for k in range(1164):
 for k in range(1164):
     name = 'bananas/{name}.jpg'.format(name=(k+1))
     resize_image(name, name)
+'''
