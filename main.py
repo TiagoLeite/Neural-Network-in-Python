@@ -7,7 +7,7 @@ from tensorflow.python.tools import freeze_graph
 from tensorflow.python.tools import optimize_for_inference_lib
 import os
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 EXPORT_DIR = './model'
 if os.path.exists(EXPORT_DIR):
     shutil.rmtree(EXPORT_DIR)
