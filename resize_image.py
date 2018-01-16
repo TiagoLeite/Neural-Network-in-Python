@@ -18,15 +18,13 @@ def resize_image(input_image_path, output_image_path):
     # resized_image.show()
     resized_image.save(output_image_path)
 
-name = 'digit.png'
-resize_image(name, name)
+for k in range(36):
+    for p in range(55):
+        name = 'handwritten/Sample%.3d/img%.3d-%.3d.png' % ((k+1), (k+1), (p+1))
+        # print(name)
+        resize_image(name, name)
 
-'''
-for k in range(1164):
-    name = 'no_bananas/{name}.jpg'.format(name=(k+1))
-    resize_image(name, name)
-
-for k in range(1164):
+'''for k in range(1164):
     name = 'bananas/{name}.jpg'.format(name=(k+1))
     resize_image(name, name)
 '''
