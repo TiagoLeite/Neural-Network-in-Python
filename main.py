@@ -7,7 +7,7 @@ from tensorflow.python.tools import freeze_graph
 from tensorflow.python.tools import optimize_for_inference_lib
 import os
 
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 EXPORT_DIR = './model'
 if os.path.exists(EXPORT_DIR):
     shutil.rmtree(EXPORT_DIR)
@@ -15,19 +15,16 @@ if os.path.exists(EXPORT_DIR):
 
 def read_data(start, end):
     formatted_data = [[], []]
-    for k in range(start, end):
-        name = 'bananas/{name}.jpg'.format(name=(k + 1))
-        img = Image.open(name)
-        img_array = (np.array(img).reshape(100*120*3))/255.0
-        formatted_data[0].append(img_array)
-        formatted_data[1].append([0, 1])
-
-        name = 'no_bananas/{name}.jpg'.format(name=(k + 1))
-        img = Image.open(name)
-        img_array = (np.array(img).reshape(100 * 120 * 3)) / 255.0
-        formatted_data[0].append(img_array)
-        formatted_data[1].append([1, 0])
-
+    for j in range(36):
+        for k in range(start, end):
+            name = 'handwritten/Sample%.3d/img%.3d-%.3d.png' % ((j + 1), (j + 1), (k + 1))
+            img = Image.open(name).convert('L')
+            # print(np.shape(img))
+            img_array = (np.array(img).reshape(28*28))/255.0
+            formatted_data[0].append(img_array)
+            label = [0.0]*36
+            label[j] = 1.0
+            formatted_data[1].append(label)
     return formatted_data
 
 
@@ -51,10 +48,10 @@ def max_pool_2x2(x):
 
 print("Reading mnist...")
 # sess = tf.InteractiveSession()
-mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
+# mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 x = tf.placeholder(tf.float32, shape=[None, 784])
-y_ = tf.placeholder(tf.float32, shape=[None, 10])
+y_ = tf.placeholder(tf.float32, shape=[None, 36])
 
 # === Model ===
 
@@ -82,8 +79,8 @@ keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
 # Read out layer:
-W_fc2 = weight_variable([1024, 10])
-b_fc2 = bias_variable([10])
+W_fc2 = weight_variable([1024, 36])
+b_fc2 = bias_variable([36])
 
 y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
@@ -100,17 +97,20 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
 
-    for i in range(1000):
-        batch = mnist.train.next_batch(100)
-        if i % 100 == 0:
-            train_acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
-            print('Step %d, training accuracy %g' % (i, train_acc))
-        train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
+    for p in range(100):
+        for i in range(12):
+            # batch = mnist.train.next_batch(100)
+            batch = read_data(i*4, (i+1)*4)
+            if i == 10:
+                train_acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
+                print('Step %3d, training accuracy %g' % (p, train_acc))
+            train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
 
     print("\tTesting...")
     partials = []
-    for _ in range(10):
-        batch = mnist.test.next_batch(1000)
+    for _ in range(1):
+        # batch = mnist.test.next_batch(1000)
+        batch = read_data(48, 55)
         res = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
         partials.append(res)
         # print("Testing Accuracy: ", res)
@@ -131,6 +131,7 @@ with tf.Session() as sess:
 
 graph = tf.Graph()
 
+'''
 with graph.as_default():
 
     x_2 = tf.placeholder('float32', shape=[None, 28*28], name='input')
@@ -184,6 +185,7 @@ with graph.as_default():
             # print("Testing Accuracy: ", res)
         print(partials)
         print("Avg:", tf.reduce_mean(partials).eval())
+'''
 
 
 

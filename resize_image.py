@@ -11,7 +11,7 @@ def resize_image(input_image_path, output_image_path):
     print('The original image size is {wide} wide x {height} '
           'high'.format(wide=width, height=height))
 
-    resized_image = original_image.resize(size)
+    resized_image = original_image.resize(size, resample=Image.LANCZOS)
     width, height = resized_image.size
     print('The resized image size is {wide} wide x {height} '
           'high\n'.format(wide=width, height=height))
