@@ -8,7 +8,7 @@ from tensorflow.python.tools import freeze_graph
 from tensorflow.python.tools import optimize_for_inference_lib
 import os
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 EXPORT_DIR = './model'
 if os.path.exists(EXPORT_DIR):
     shutil.rmtree(EXPORT_DIR)
@@ -100,13 +100,13 @@ with tf.Session() as sess:
 
     start = datetime.datetime.now()
 
-    for p in range(80):
+    for p in range(1):
         for i in range(180):
             # batch = mnist.train.next_batch(100)
             batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
             if i % 50 == 0:
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0})
-                print('Step %3d/180/%3d, font digit training accuracy %g' % (i, p, train_acc))
+                print('Step %3d/180/%d, font digit training accuracy %g' % (i, p, train_acc))
             train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.5})
         for k in range(5):
             for i in range(12):

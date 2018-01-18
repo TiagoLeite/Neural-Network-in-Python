@@ -1,0 +1,15 @@
+Reading mnist...
+Training...
+Step   0/180/0, font digit training accuracy 0.0277778
+Step  50/180/0, font digit training accuracy 0.0277778
+Step 100/180/0, font digit training accuracy 0.0277778
+Step 150/180/0, font digit training accuracy 0.0388889
+Step   0, hand digit training accuracy 0.0277778
+
+Finished training in 0:02:44.415668
+	Testing...
+Testing Hand Digit Accuracy:  0.0277778
+Testing Font Digit Accuracy:  0.0444444
+Testing Font Digit Accuracy:  0.0355556
+Testing Font Digit Accuracy:  0.0422222
+Testing Font Digit Accuracy:  0.04
