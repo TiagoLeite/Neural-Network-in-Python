@@ -3,6 +3,7 @@ import tensorflow as tf
 import shutil
 from PIL import Image
 import numpy as np
+import datetime
 from tensorflow.python.tools import freeze_graph
 from tensorflow.python.tools import optimize_for_inference_lib
 import os
@@ -97,8 +98,9 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
 
-    for p in range(80):
+    start = datetime.datetime.now()
 
+    for p in range(80):
         for i in range(180):
             # batch = mnist.train.next_batch(100)
             batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
@@ -106,7 +108,6 @@ with tf.Session() as sess:
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0})
                 print('Step %3d/180/%3d, font digit training accuracy %g' % (i, p, train_acc))
             train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.5})
-
         for k in range(5):
             for i in range(12):
                 # batch = mnist.train.next_batch(100)
@@ -116,7 +117,11 @@ with tf.Session() as sess:
                     print('Step %3d, hand digit training accuracy %g' % (p, train_acc))
                 train_step.run(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 0.5})
 
+    end = datetime.datetime.now()
+    print("\nFinished training in", (end - start))
+
     print("\tTesting...")
+
     batch_hand = read_data(48, 55, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
     res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0})
     print("Testing Hand Digit Accuracy: ", res)
