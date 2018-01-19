@@ -13,6 +13,8 @@ EXPORT_DIR = './model'
 if os.path.exists(EXPORT_DIR):
     shutil.rmtree(EXPORT_DIR)
 
+iterat = 1
+
 
 def read_data(start, end, pattern):
     formatted_data = [[], []]
@@ -45,16 +47,31 @@ def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 
+def batch_norm_layer(y_logits, is_test, iteration, convolutional=False):
+    exp_moving_avg = tf.train.ExponentialMovingAverage(0.9999, iteration)
+    if convolutional:
+        mean, variance = tf.nn.moments(y_logits, [0, 1, 2])
+    else:
+        mean, variance = tf.nn.moments(y_logits, [0])
+    update_moving_averages = exp_moving_avg.apply([mean, variance])
+    m = tf.cond(is_test, lambda: exp_moving_avg.average(mean), lambda: mean)
+    v = tf.cond(is_test, lambda: exp_moving_avg.average(variance), lambda: variance)
+    y_bn = tf.nn.batch_normalization(y_logits, m, v, variance_epsilon=1e-5, offset=None, scale=True)
+    return y_bn, update_moving_averages
+
+
 print("Reading mnist...")
 # sess = tf.InteractiveSession()
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 x = tf.placeholder(tf.float32, shape=[None, 784])
 y_ = tf.placeholder(tf.float32, shape=[None, 10])
+iteration = tf.placeholder(tf.int32)
 
 # === Model ===
 
 x_input = tf.reshape(x, [-1, 28, 28, 1])
+# tf.image.per_image_standardization()
 
 # Convolutional Layer 1:
 map_size_1 = 6
@@ -62,8 +79,17 @@ w_conv1 = weight_variable([6, 6, 1, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # h_conv1 = tf.nn.relu(conv2d(x_input, w_conv1) + b_conv1)
 # h_pool1 = max_pool_2x2(h_conv1)
-y_conv1 = tf.nn.relu(tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1)
+# logits_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
+# norm_1, mov_avg = batch_norm_layer(logits_1, tf.equal(1, 1), iteration, convolutional=True)
 
+log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
+log_1_norm = tf.nn.batch_normalization(log_1,
+                                       0,
+                                       1,
+                                       offset=1,
+                                       scale=True,
+                                       variance_epsilon=1e-6)
+y_conv1 = tf.nn.relu(log_1_norm)
 # Convolutional Layer 2:
 map_size_2 = 12
 w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
@@ -115,12 +141,14 @@ with tf.Session() as sess:
 
     for p in range(1):
 
-        for i in range(2000):
+        for i in range(23000):
             batch = mnist.train.next_batch(100)
-            if i % 50 == 0:
-                train_acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
+            if i % 100 == 0:
+                train_acc = accuracy.eval(feed_dict={x: batch[0],
+                                                     y_: batch[1],
+                                                     keep_prob: 1.0})
                 print('Step %3d, digit training accuracy %g' % (i, train_acc))
-            train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.75})
+            train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.75, iteration: i})
             # batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
             '''if i % 50 == 0:
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0})
@@ -139,15 +167,15 @@ with tf.Session() as sess:
     print("\nFinished training in", (end - start))
 
     print("\tTesting...")
-    mean = []
+    media = []
 
     for _ in range(10):
         batch = mnist.test.next_batch(100)
         acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
         print(acc)
-        mean.append(acc)
+        media.append(acc)
 
-    print('Media: ', tf.reduce_mean(mean).eval())
+    print('Media: ', tf.reduce_mean(media).eval())
 
     '''
     batch_hand = read_data(48, 55, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
