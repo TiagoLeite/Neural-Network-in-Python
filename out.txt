@@ -1,34 +1,5 @@
---mnist sem norm:
-0.97
-0.99
-1.0
-0.98
-0.99
-0.98
-0.99
-0.97
-0.97
-1.0
-Media:  0.984
-
---mnist com norm:
-0:29:55.551536
-1.0
-1.0
-1.0
-0.98
-0.98
-0.99
-0.95
-1.0
-1.0
-1.0
-Media:  0.99
-
-
 Testing Hand Digit Accuracy:  0.301587
 Testing Font Digit Accuracy:  0.787778
 Testing Font Digit Accuracy:  0.681111
 Testing Font Digit Accuracy:  0.792222
 Testing Font Digit Accuracy:  0.537778
-
