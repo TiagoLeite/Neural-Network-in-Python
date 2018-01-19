@@ -65,7 +65,7 @@ print("Reading mnist...")
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 x = tf.placeholder(tf.float32, shape=[None, 784])
-y_ = tf.placeholder(tf.float32, shape=[None, 10])
+y_ = tf.placeholder(tf.float32, shape=[None, 36])
 iteration = tf.placeholder(tf.int32)
 
 # === Model ===
@@ -74,24 +74,24 @@ x_input = tf.reshape(x, [-1, 28, 28, 1])
 # tf.image.per_image_standardization()
 
 # Convolutional Layer 1:
-map_size_1 = 6
+map_size_1 = 8
 w_conv1 = weight_variable([6, 6, 1, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # h_conv1 = tf.nn.relu(conv2d(x_input, w_conv1) + b_conv1)
 # h_pool1 = max_pool_2x2(h_conv1)
-# logits_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
-# norm_1, mov_avg = batch_norm_layer(logits_1, tf.equal(1, 1), iteration, convolutional=True)
+logits_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
+norm_1, mov_avg = batch_norm_layer(logits_1, tf.equal(1, 1), iteration, convolutional=True)
 
-log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
-log_1_norm = tf.nn.batch_normalization(log_1,
+# log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
+'''log_1_norm = tf.nn.batch_normalization(log_1,
                                        0,
                                        1,
-                                       offset=1,
+                                       offset=.75,
                                        scale=True,
-                                       variance_epsilon=1e-6)
-y_conv1 = tf.nn.relu(log_1_norm)
+                                       variance_epsilon=1e-6)'''
+y_conv1 = tf.nn.relu(norm_1)
 # Convolutional Layer 2:
-map_size_2 = 12
+map_size_2 = 16
 w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
 b_conv2 = bias_variable([map_size_2])
 # h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
@@ -100,7 +100,7 @@ y_conv2 = tf.nn.relu(tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], paddin
 y_conv2_pool = tf.nn.max_pool(y_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 # Convolutional Layer 3:
-map_size_3 = 24
+map_size_3 = 32
 w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
 # h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
@@ -119,8 +119,8 @@ keep_prob = tf.placeholder(tf.float32)
 y_fc1_drop = tf.nn.dropout(y_fc1, keep_prob)
 
 # Read out layer:
-w_fc2 = weight_variable([256, 10])
-b_fc2 = bias_variable([10])
+w_fc2 = weight_variable([256, 36])
+b_fc2 = bias_variable([36])
 
 y_out = tf.nn.softmax(tf.matmul(y_fc1_drop, w_fc2) + b_fc2)
 
@@ -138,46 +138,38 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
     start = datetime.datetime.now()
-
-    for p in range(1):
-
-        for i in range(23000):
-            batch = mnist.train.next_batch(100)
-            if i % 100 == 0:
-                train_acc = accuracy.eval(feed_dict={x: batch[0],
-                                                     y_: batch[1],
-                                                     keep_prob: 1.0})
-                print('Step %3d, digit training accuracy %g' % (i, train_acc))
-            train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.75, iteration: i})
-            # batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-            '''if i % 50 == 0:
-                train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0})
-                print('Step %3d/180/%d, font digit training accuracy %g' % (i, p, train_acc))
-            train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.5})
-            for k in range(5):
-            for i in range(12):
+    epochs = 40
+    for p in range(epochs):
+        for i in range(180):
+            batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
+            if i % 40 == 0:
+                train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: p})
+                print('Step %3d/180 of %d/%d, font digit training accuracy %g'
+                      % (i, p, epochs, train_acc))
+            train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.5, iteration: p})
+            mov_avg.run(feed_dict={x: batch_font[0], iteration: p})
+        for k in range(5):
+            for j in range(12):
                 # batch = mnist.train.next_batch(100)
-                batch_hand = read_data(i*4, (i+1)*4, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
-                if k == 0 and i == 0:
-                    train_acc = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0})
+                batch_hand = read_data(j*4, (j+1)*4, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
+                if k == 0 and j == 0:
+                    train_acc = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, iteration: p})
                     print('Step %3d, hand digit training accuracy %g' % (p, train_acc))
-                train_step.run(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 0.5})'''
+                train_step.run(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 0.5, iteration: p})
+                mov_avg.run(feed_dict={x: batch_hand[0], iteration:p})
 
     end = datetime.datetime.now()
     print("\nFinished training in", (end - start))
 
     print("\tTesting...")
     media = []
-
-    for _ in range(10):
+    '''for _ in range(10):
         batch = mnist.test.next_batch(100)
         acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
         print(acc)
         media.append(acc)
+    print('Media: ', tf.reduce_mean(media).eval())'''
 
-    print('Media: ', tf.reduce_mean(media).eval())
-
-    '''
     batch_hand = read_data(48, 55, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
     res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0})
     print("Testing Hand Digit Accuracy: ", res)
@@ -193,7 +185,7 @@ with tf.Session() as sess:
     print("Testing Font Digit Accuracy: ", res)
     batch_font = read_data(975, 1000, 'fnt/Sample%.3d/img%.3d-%.5d.png')
     res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0})
-    print("Testing Font Digit Accuracy: ", res)'''
+    print("Testing Font Digit Accuracy: ", res)
 
     W_C1 = w_conv1.eval(sess)
     B_C1 = b_conv1.eval(sess)
