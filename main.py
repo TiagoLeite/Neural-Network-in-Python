@@ -100,7 +100,7 @@ x_input = tf.reshape(x, [-1, 28, 28, 1])
 
 # Convolutional Layer 1:
 map_size_1 = 12
-w_conv1 = weight_variable([3, 3, 1, map_size_1])
+w_conv1 = weight_variable([6, 6, 1, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # h_conv1 = tf.nn.relu(conv2d(x_input, w_conv1) + b_conv1)
 # h_pool1 = max_pool_2x2(h_conv1)
@@ -110,22 +110,24 @@ log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b
 y_conv1 = tf.nn.relu(batch_norm_wrapper(log_1, is_training))
 # Convolutional Layer 2:
 map_size_2 = 16
-w_conv2 = weight_variable([3, 3, map_size_1, map_size_2])
+w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
 b_conv2 = bias_variable([map_size_2])
 # h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
 # h_pool2 = max_pool_2x2(h_conv2)
-log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], padding='SAME') + b_conv2
-y_conv2 = tf.nn.relu(batch_norm_wrapper(log_2, is_training))
+log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 1, 1, 1], padding='SAME') + b_conv2
+log_2_pool = max_pool_2x2(log_2)
+y_conv2 = tf.nn.relu(batch_norm_wrapper(log_2_pool, is_training))
 # y_conv2_pool = tf.nn.max_pool(y_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 # Convolutional Layer 3:
 map_size_3 = 22
-w_conv3 = weight_variable([3, 3, map_size_2, map_size_3])
+w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
 # h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
 # h_pool2 = max_pool_2x2(h_conv2)
-log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 2, 2, 1], padding='SAME') + b_conv3
-y_conv3 = tf.nn.relu(batch_norm_wrapper(log_3, is_training))
+log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 1, 1, 1], padding='SAME') + b_conv3
+log_3_pool = max_pool_2x2(log_3)
+y_conv3 = tf.nn.relu(batch_norm_wrapper(log_3_pool, is_training))
 # y_conv3_pool = tf.nn.max_pool(y_conv3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 # Fully connected layer:
