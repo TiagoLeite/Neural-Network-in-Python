@@ -48,14 +48,14 @@ def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 
-def batch_norm_wrapper(inputs, cond, decay=0.999):
+def batch_norm_wrapper(inputs, cond, axis, decay=0.999):
     scale = tf.Variable(tf.ones([inputs.get_shape()[-1]]))
     beta = tf.Variable(tf.zeros([inputs.get_shape()[-1]]))
     pop_mean = tf.Variable(tf.zeros([inputs.get_shape()[-1]]), trainable=False)
     pop_var = tf.Variable(tf.ones([inputs.get_shape()[-1]]), trainable=False)
 
     def f1():
-        batch_mean, batch_var = tf.nn.moments(inputs, [0, 1, 2])
+        batch_mean, batch_var = tf.nn.moments(inputs, axis)
         train_mean = tf.assign(pop_mean,
                                pop_mean * decay + batch_mean * (1 - decay))
         train_var = tf.assign(pop_var,
@@ -99,42 +99,43 @@ x_input = tf.reshape(x, [-1, 28, 28, 1])
 # tf.image.per_image_standardization()
 
 # Convolutional Layer 1:
-map_size_1 = 12
-w_conv1 = weight_variable([6, 6, 1, map_size_1])
+map_size_1 = 16
+w_conv1 = weight_variable([5, 5, 1, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # h_conv1 = tf.nn.relu(conv2d(x_input, w_conv1) + b_conv1)
 # h_pool1 = max_pool_2x2(h_conv1)
 # logits_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
 # norm_1, mov_avg = batch_norm_layer(logits_1, tf.equal(1, 1), iteration, convolutional=True)
 log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
-y_conv1 = tf.nn.relu(batch_norm_wrapper(log_1, is_training))
+y_conv1 = tf.nn.relu(batch_norm_wrapper(log_1, is_training, axis=[0, 1, 2]))
 # Convolutional Layer 2:
 map_size_2 = 16
 w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
 b_conv2 = bias_variable([map_size_2])
 # h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
 # h_pool2 = max_pool_2x2(h_conv2)
-log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 1, 1, 1], padding='SAME') + b_conv2
-log_2_pool = max_pool_2x2(log_2)
-y_conv2 = tf.nn.relu(batch_norm_wrapper(log_2_pool, is_training))
+log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], padding='SAME') + b_conv2
+# log_2_pool = max_pool_2x2(log_2)
+y_conv2 = tf.nn.relu(batch_norm_wrapper(log_2, is_training, axis=[0, 1, 2]))
 # y_conv2_pool = tf.nn.max_pool(y_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 # Convolutional Layer 3:
-map_size_3 = 22
-w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
+map_size_3 = 32
+w_conv3 = weight_variable([3, 3, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
 # h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
 # h_pool2 = max_pool_2x2(h_conv2)
-log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 1, 1, 1], padding='SAME') + b_conv3
-log_3_pool = max_pool_2x2(log_3)
-y_conv3 = tf.nn.relu(batch_norm_wrapper(log_3_pool, is_training))
+log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 2, 2, 1], padding='SAME') + b_conv3
+# log_3_pool = max_pool_2x2(log_3)
+y_conv3 = tf.nn.relu(batch_norm_wrapper(log_3, is_training, axis=[0, 1, 2]))
 # y_conv3_pool = tf.nn.max_pool(y_conv3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 # Fully connected layer:
 fc_input = tf.reshape(y_conv3, [-1, 7 * 7 * map_size_3])
 w_fc1 = weight_variable([7 * 7 * map_size_3, 256])
 b_fc1 = bias_variable([256])
-y_fc1 = tf.nn.relu(tf.matmul(fc_input, w_fc1) + b_fc1)
+log_4 = tf.matmul(fc_input, w_fc1) + b_fc1
+y_fc1 = tf.nn.relu(batch_norm_wrapper(log_4, is_training, axis=[0]))
 
 # Dropout:
 keep_prob = tf.placeholder(tf.float32)
@@ -167,7 +168,7 @@ with tf.Session() as sess:
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: True})
                 print('Step %3d/180 of %d/%d, font digit training accuracy %g'
                       % (i, p, epochs, train_acc))
-            train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.75, is_training: True})
+            train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.5, is_training: True})
             # mov_avg.run(feed_dict={x: batch_font[0], iteration: p})
 
         '''for k in range(5):
