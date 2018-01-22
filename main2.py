@@ -159,17 +159,17 @@ print("Training...")
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     start = datetime.datetime.now()
-    epochs = 1
+    epochs = 100
     for p in range(epochs):
         for i in range(180):
             batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
             # batch_font = mnist.train.next_batch(100)
-            if i % 50 == 0:
+            if i % 0 == 0:
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
                 print('Step %3d/180 of %d/%d, font digit training accuracy %g'
                       % (i, p, epochs, train_acc))
             train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.5, is_training: True})
-        for k in range(5):
+        for k in range(12):
             for j in range(12):
                 # batch = mnist.train.next_batch(100)
                 batch_hand = read_data(j*4, (j+1)*4, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
