@@ -14,19 +14,19 @@ if os.path.exists(EXPORT_DIR):
     shutil.rmtree(EXPORT_DIR)
 
 iterat = 1
-n_classes = 36
+n_classes = 10
 
 
 def read_data(start, end, pattern):
     formatted_data = [[], []]
-    for j in range(n_classes):
+    for j in range(36):
         for k in range(start, end):
             name = pattern % ((j + 1), (j + 1), (k + 1))
             img = Image.open(name).convert('L')
             # print(np.shape(img))
             img_array = (np.array(img).reshape(28 * 28)) / 255.0
             formatted_data[0].append(img_array)
-            label = [0.0] * n_classes
+            label = [0.0] * 36
             label[j] = 1.0
             formatted_data[1].append(label)
     return formatted_data
@@ -161,50 +161,54 @@ with tf.Session() as sess:
     start = datetime.datetime.now()
     epochs = 1
     for p in range(epochs):
-        for i in range(180):
-            batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-            # batch_font = mnist.train.next_batch(100)
-            if i % 50 == 0:
+        for i in range(16000):
+            # batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
+            batch_font = mnist.train.next_batch(100)
+            if i % 100 == 0:
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
                 print('Step %3d/180 of %d/%d, font digit training accuracy %g'
                       % (i, p, epochs, train_acc))
             train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.5, is_training: True})
-        for k in range(5):
+            # mov_avg.run(feed_dict={x: batch_font[0], iteration: p})
+
+        '''for k in range(5):
             for j in range(12):
                 # batch = mnist.train.next_batch(100)
                 batch_hand = read_data(j*4, (j+1)*4, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
                 if k == 0 and j == 0:
-                    train_acc = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, is_training: False})
+                    train_acc = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, iteration: p})
                     print('Step %3d, hand digit training accuracy %g' % (p, train_acc))
-                train_step.run(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 0.5, is_training: True})
+                train_step.run(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 0.5, iteration: p})
+                mov_avg.run(feed_dict={x: batch_hand[0], iteration:p})'''
 
     end = datetime.datetime.now()
     print("\nFinished training in", (end - start))
     print("\tTesting...")
-    '''media = []
+    media = []
     for _ in range(10):
-        batch = mnist.test.next_batch(100)
+        batch = mnist.test.next_batch(1000)
         acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0, is_training: False})
         print(100 * acc)
         media.append(acc)
-    print('Media: ', 100 * tf.reduce_mean(media).eval())'''
+    print('Media: ', 100 * tf.reduce_mean(media).eval())
 
+    '''
     batch_hand = read_data(48, 55, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
-    res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, is_training: False})
+    res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0})
     print("Testing Hand Digit Accuracy: ", res)
 
     batch_font = read_data(900, 925, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
+    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0})
     print("Testing Font Digit Accuracy: ", res)
     batch_font = read_data(925, 950, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
+    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0})
     print("Testing Font Digit Accuracy: ", res)
     batch_font = read_data(950, 975, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
+    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0})
     print("Testing Font Digit Accuracy: ", res)
     batch_font = read_data(975, 1000, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
-    print("Testing Font Digit Accuracy: ", res)
+    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0})
+    print("Testing Font Digit Accuracy: ", res)'''
 
     W_C1 = w_conv1.eval(sess)
     B_C1 = b_conv1.eval(sess)

@@ -75,9 +75,46 @@ Finished training in 1:31:15.501535
 100.0
 Media:  99.5999991894
 
+4)
+Finished training in 0:55:36.626985
+	Testing...
+100.0
+99.0000009537
+99.0000009537
+99.0000009537
+100.0
+100.0
+99.0000009537
+100.0
+98.0000019073
+100.0
+Media:  99.4000077248
 
+5)
 
+Finished training in 0:55:14.777275
+	Testing...
+99.0000009537
+99.0000009537
+100.0
+99.0000009537
+100.0
+100.0
+100.0
+99.0000009537
+100.0
+100.0
+Media:  99.5999991894
 
+====================
+(mostra acertos altos no trieno)
+Finished training in 0:28:00.614981
+	Testing...
+Testing Hand Digit Accuracy:  0.0357143
+Testing Font Digit Accuracy:  0.715556
+Testing Font Digit Accuracy:  0.745556
+Testing Font Digit Accuracy:  0.793333
+Testing Font Digit Accuracy:  0.534444
 
 
 
