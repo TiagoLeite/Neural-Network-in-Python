@@ -99,8 +99,8 @@ x_input = tf.reshape(x, [-1, 28, 28, 1])
 # tf.image.per_image_standardization()
 
 # Convolutional Layer 1:
-map_size_1 = 16
-w_conv1 = weight_variable([5, 5, 1, map_size_1])
+map_size_1 = 12
+w_conv1 = weight_variable([6, 6, 1, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # h_conv1 = tf.nn.relu(conv2d(x_input, w_conv1) + b_conv1)
 # h_pool1 = max_pool_2x2(h_conv1)
@@ -120,8 +120,8 @@ y_conv2 = tf.nn.relu(batch_norm_wrapper(log_2, is_training, axis=[0, 1, 2]))
 # y_conv2_pool = tf.nn.max_pool(y_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 # Convolutional Layer 3:
-map_size_3 = 32
-w_conv3 = weight_variable([3, 3, map_size_2, map_size_3])
+map_size_3 = 24
+w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
 # h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
 # h_pool2 = max_pool_2x2(h_conv2)
@@ -150,7 +150,7 @@ y_out = tf.nn.softmax(tf.matmul(y_fc1_drop, w_fc2) + b_fc2)
 # =========
 
 loss_cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_out))
-train_step = tf.train.AdamOptimizer().minimize(loss_cross_entropy)
+train_step = tf.train.AdamOptimizer(1e-3).minimize(loss_cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_out, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
@@ -161,7 +161,7 @@ with tf.Session() as sess:
     start = datetime.datetime.now()
     epochs = 1
     for p in range(epochs):
-        for i in range(10000):
+        for i in range(16000):
             # batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
             batch_font = mnist.train.next_batch(100)
             if i % 100 == 0:
