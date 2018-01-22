@@ -165,7 +165,7 @@ with tf.Session() as sess:
             batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
             # batch_font = mnist.train.next_batch(100)
             if i % 50 == 0:
-                train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: True})
+                train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
                 print('Step %3d/180 of %d/%d, font digit training accuracy %g'
                       % (i, p, epochs, train_acc))
             train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.5, is_training: True})
@@ -190,20 +190,20 @@ with tf.Session() as sess:
     print('Media: ', 100 * tf.reduce_mean(media).eval())'''
 
     batch_hand = read_data(48, 55, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
-    res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, is_training: True})
+    res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, is_training: False})
     print("Testing Hand Digit Accuracy: ", res)
 
     batch_font = read_data(900, 925, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: True})
+    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
     print("Testing Font Digit Accuracy: ", res)
     batch_font = read_data(925, 950, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: True})
+    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
     print("Testing Font Digit Accuracy: ", res)
     batch_font = read_data(950, 975, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: True})
+    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
     print("Testing Font Digit Accuracy: ", res)
     batch_font = read_data(975, 1000, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: True})
+    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
     print("Testing Font Digit Accuracy: ", res)
 
     W_C1 = w_conv1.eval(sess)
