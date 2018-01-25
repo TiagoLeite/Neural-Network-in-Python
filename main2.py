@@ -4,8 +4,6 @@ import shutil
 from PIL import Image
 import numpy as np
 import datetime
-from tensorflow.python.tools import freeze_graph
-from tensorflow.python.tools import optimize_for_inference_lib
 import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -99,7 +97,7 @@ x_input = tf.reshape(x, [-1, 28, 28, 1])
 # tf.image.per_image_standardization()
 
 # Convolutional Layer 1:
-map_size_1 = 12
+map_size_1 = 16
 w_conv1 = weight_variable([6, 6, 1, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # h_conv1 = tf.nn.relu(conv2d(x_input, w_conv1) + b_conv1)
@@ -109,25 +107,27 @@ b_conv1 = bias_variable([map_size_1])
 log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
 y_conv1 = tf.nn.relu(batch_norm_wrapper(log_1, is_training, axis=[0, 1, 2]))
 # Convolutional Layer 2:
-map_size_2 = 16
+map_size_2 = 24
 w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
 b_conv2 = bias_variable([map_size_2])
 # h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
 # h_pool2 = max_pool_2x2(h_conv2)
 log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], padding='SAME') + b_conv2
 # log_2_pool = max_pool_2x2(log_2)
-y_conv2 = tf.nn.relu(batch_norm_wrapper(log_2, is_training, axis=[0, 1, 2]))
+# y_conv2 = tf.nn.relu(batch_norm_wrapper(log_2, is_training, axis=[0, 1, 2]))
+y_conv2 = tf.nn.relu(log_2)
 # y_conv2_pool = tf.nn.max_pool(y_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 # Convolutional Layer 3:
-map_size_3 = 24
+map_size_3 = 30
 w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
 # h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
 # h_pool2 = max_pool_2x2(h_conv2)
 log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 2, 2, 1], padding='SAME') + b_conv3
 # log_3_pool = max_pool_2x2(log_3)
-y_conv3 = tf.nn.relu(batch_norm_wrapper(log_3, is_training, axis=[0, 1, 2]))
+# y_conv3 = tf.nn.relu(batch_norm_wrapper(log_3, is_training, axis=[0, 1, 2]))
+y_conv3 = tf.nn.relu(log_3)
 # y_conv3_pool = tf.nn.max_pool(y_conv3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 # Fully connected layer:
@@ -150,7 +150,7 @@ y_out = tf.nn.softmax(tf.matmul(y_fc1_drop, w_fc2) + b_fc2)
 # =========
 
 loss_cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_out))
-train_step = tf.train.AdamOptimizer(1e-3).minimize(loss_cross_entropy)
+train_step = tf.train.AdamOptimizer().minimize(loss_cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_out, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
@@ -159,24 +159,24 @@ print("Training...")
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     start = datetime.datetime.now()
-    epochs = 100
+    epochs = 20
     for p in range(epochs):
         for i in range(180):
             batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
             # batch_font = mnist.train.next_batch(100)
-            if i % 0 == 0:
+            if i % 50 == 0:
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_training: False})
                 print('Step %3d/180 of %d/%d, font digit training accuracy %g'
                       % (i, p, epochs, train_acc))
-            train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.5, is_training: True})
-        for k in range(12):
+            train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.75, is_training: True})
+        for k in range(15):
             for j in range(12):
                 # batch = mnist.train.next_batch(100)
                 batch_hand = read_data(j*4, (j+1)*4, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
                 if k == 0 and j == 0:
                     train_acc = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, is_training: False})
                     print('Step %3d, hand digit training accuracy %g' % (p, train_acc))
-                train_step.run(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 0.5, is_training: True})
+                train_step.run(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 0.75, is_training: True})
 
     end = datetime.datetime.now()
     print("\nFinished training in", (end - start))
