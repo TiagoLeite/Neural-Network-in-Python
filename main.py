@@ -109,7 +109,7 @@ log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b
 y_norm, ema1 = batch_norm(log_1, is_test, iteration, b_conv1, convolutional=True)
 y_conv1 = tf.nn.relu(y_norm)
 # Convolutional Layer 2:
-map_size_2 = 18
+map_size_2 = 16
 w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
 b_conv2 = bias_variable([map_size_2])
 log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], padding='SAME') + b_conv2
@@ -157,7 +157,7 @@ print("Training...")
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     start = datetime.datetime.now()
-    epochs = 15
+    epochs = 30
     for p in range(epochs):
         for i in range(550):
             # batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
@@ -167,7 +167,7 @@ with tf.Session() as sess:
                 print('Step %3d/550 in epoch %d of %d , training accuracy %g'
                       % (i, p, epochs, train_acc))
             train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.75, is_test: False})
-            update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: i, is_test: False})
+            update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: p*550+i, is_test: False})
     end = datetime.datetime.now()
     print("\nFinished training in", (end - start))
     print("\tTesting...")
