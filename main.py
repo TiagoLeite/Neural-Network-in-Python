@@ -4,8 +4,7 @@ import shutil
 from PIL import Image
 import numpy as np
 import datetime
-from tensorflow.python.tools import freeze_graph
-from tensorflow.python.tools import optimize_for_inference_lib
+import math
 import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -71,18 +70,24 @@ def batch_norm_wrapper(inputs, cond, axis, decay=0.999):
     return tf.cond(cond, f1, f2)
 
 
-def batch_norm(y_logits, is_test, iteration, offset, convolutional=False):
-    # adding the iteration prevents from averaging across non-existing iterations
-    exp_moving_avg = tf.train.ExponentialMovingAverage(0.9999, iteration)
+def batch_norm(Ylogits, is_test, iteration, offset, convolutional=False):
+    exp_moving_avg = tf.train.ExponentialMovingAverage(0.999, iteration)  # adding the iteration prevents from averaging across non-existing iterations
+    bnepsilon = 1e-5
     if convolutional:
-        mean, variance = tf.nn.moments(y_logits, [0, 1, 2])
+        mean, variance = tf.nn.moments(Ylogits, [0, 1, 2])
     else:
-        mean, variance = tf.nn.moments(y_logits, [0])
-    update_moving_everages = exp_moving_avg.apply([mean, variance])
+        mean, variance = tf.nn.moments(Ylogits, [0])
+    update_moving_averages = exp_moving_avg.apply([mean, variance])
     m = tf.cond(is_test, lambda: exp_moving_avg.average(mean), lambda: mean)
     v = tf.cond(is_test, lambda: exp_moving_avg.average(variance), lambda: variance)
-    y_bn = tf.nn.batch_normalization(y_logits, m, v, offset, None, 1e-5)
-    return y_bn, update_moving_everages
+    Ybn = tf.nn.batch_normalization(Ylogits, m, v, offset, None, bnepsilon)
+    return Ybn, update_moving_averages
+
+
+def compatible_convolutional_noise_shape(Y):
+    noise_shape = tf.shape(Y)
+    noise_shape = noise_shape * tf.constant([1, 0, 0, 1]) + tf.constant([0, 1, 1, 0])
+    return noise_shape
 
 
 def no_batch_norm(y_logits, is_test, iteration, offset, convolutional=False):
@@ -91,36 +96,37 @@ def no_batch_norm(y_logits, is_test, iteration, offset, convolutional=False):
 
 print("Reading mnist...")
 # sess = tf.InteractiveSession()
-mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
+mnist = input_data.read_data_sets('MNIST_data', one_hot=True, validation_size=0)
 
 x = tf.placeholder(tf.float32, shape=[None, 784])
 y_ = tf.placeholder(tf.float32, shape=[None, n_classes])
 is_test = tf.placeholder(tf.bool)
 iteration = tf.placeholder(tf.int32)
+lr = tf.placeholder(tf.float32)
 
 # ===== Model =====
 x_input = tf.reshape(x, [-1, 28, 28, 1])
 # Convolutional Layer 1:
-map_size_1 = 12
+map_size_1 = 32
 w_conv1 = weight_variable([6, 6, 1, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # norm_1, mov_avg = batch_norm_layer(logits_1, tf.equal(1, 1), iteration, convolutional=True)
-log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1
+log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME')  # + b_conv1
 y_norm, ema1 = batch_norm(log_1, is_test, iteration, b_conv1, convolutional=True)
 y_conv1 = tf.nn.relu(y_norm)
 # Convolutional Layer 2:
-map_size_2 = 16
+map_size_2 = 32
 w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
 b_conv2 = bias_variable([map_size_2])
-log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], padding='SAME') + b_conv2
+log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv2
 log_2_norm, ema2 = batch_norm(log_2, is_test, iteration, b_conv2, convolutional=True)
 y_conv2 = tf.nn.relu(log_2_norm)
 
 # Convolutional Layer 3:
-map_size_3 = 24
+map_size_3 = 64
 w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
-log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 2, 2, 1], padding='SAME') + b_conv3
+log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv3
 log_3_norm, ema3 = batch_norm(log_3, is_test, iteration, b_conv3, convolutional=True)
 y_conv3 = tf.nn.relu(log_3_norm)
 
@@ -147,10 +153,15 @@ update_ema = tf.group(ema1, ema2, ema3, ema4)
 
 # =========
 
-loss_cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_out))
-train_step = tf.train.AdamOptimizer(1e-3).minimize(loss_cross_entropy)
+loss_cross_entropy = 100*tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_out))
+train_step = tf.train.AdamOptimizer(lr).minimize(loss_cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_out, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+# learning rate decay
+max_learning_rate = 0.02
+min_learning_rate = 0.0001
+decay_speed = 1600
 
 print("Training...")
 
@@ -159,21 +170,24 @@ with tf.Session() as sess:
     start = datetime.datetime.now()
     epochs = 30
     for p in range(epochs):
-        for i in range(550):
+        for i in range(600):
             # batch_font = read_data(i*5, (i+1)*5, 'fnt/Sample%.3d/img%.3d-%.5d.png')
             batch_font = mnist.train.next_batch(100)
+            learning_rate = \
+                min_learning_rate + (max_learning_rate - min_learning_rate) * math.exp(-(p*600+i)/decay_speed)
             if i % 100 == 0:
-                train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_test: True})
+                train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1],
+                                                     lr: learning_rate, keep_prob: 1.0, is_test: True})
                 print('Step %3d/550 in epoch %d of %d , training accuracy %g'
                       % (i, p, epochs, train_acc))
-            train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 0.75, is_test: False})
-            update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: p*550+i, is_test: False})
+            train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], lr: learning_rate, keep_prob: 0.75, is_test: False})
+            update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: p*600+i, is_test: False})
     end = datetime.datetime.now()
     print("\nFinished training in", (end - start))
     print("\tTesting...")
     media = []
-    for _ in range(10):
-        batch = mnist.test.next_batch(1000)
+    for _ in range(20):
+        batch = mnist.test.next_batch(500)
         acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0, is_test: True})
         print(100 * acc)
         media.append(acc)
