@@ -1,127 +1,40 @@
-== Com max pool 2x2:
-1)
-Finished training in 1:15:33.835992
+Finished training in 3:11:00.005828
 	Testing...
+99.5999991894
 100.0
+99.4000017643
+99.8000025749
 100.0
 99.0000009537
-98.0000019073
-99.0000009537
-99.0000009537
-99.0000009537
+99.4000017643
+99.4000017643
+99.8000025749
 100.0
-100.0
-100.0
-Media:  99.4000077248
-2)
-Finished training in 1:15:15.240245
+99.0000009537
+99.5999991894
+99.8000025749
+99.0000009537
+99.4000017643
+99.4000017643
+99.5999991894
+99.0000009537
+99.1999983788
+99.8000025749
+Media:  99.5100021362
+
+=======================
+
+Finished training in 0:57:23.759420
 	Testing...
-99.0000009537
-99.0000009537
-99.0000009537
-100.0
-98.0000019073
-98.0000019073
-98.0000019073
-97.000002861
-99.0000009537
-99.0000009537
-Media:  98.6000061035
-
-=== Sem max pool, batch norm em todas:
-1)
-Finished training in 0:40:39.419663
-	Testing...
-100.0
-99.0000009537
-99.0000009537
-100.0
-100.0
-99.0000009537
-99.0000009537
-100.0
-100.0
-100.0
-Media:  99.5999991894
-
-2)15k for
-
-Finished training in 1:26:12.446191
-	Testing...
-100.0
-99.0000009537
-99.0000009537
-99.0000009537
-100.0
-100.0
-99.0000009537
-99.0000009537
-100.0
-100.0
-Media:  99.5000004768
-
-3) 16k for:
-Finished training in 1:31:15.501535
-	Testing...
-99.0000009537
-100.0
-100.0
-100.0
-98.0000019073
-100.0
-99.0000009537
-100.0
-100.0
-100.0
-Media:  99.5999991894
-
-4)
-Finished training in 0:55:36.626985
-	Testing...
-100.0
-99.0000009537
-99.0000009537
-99.0000009537
-100.0
-100.0
-99.0000009537
-100.0
-98.0000019073
-100.0
-Media:  99.4000077248
-
-5)
-
-Finished training in 0:55:14.777275
-	Testing...
-99.0000009537
-99.0000009537
-100.0
-99.0000009537
-100.0
-100.0
-100.0
-99.0000009537
-100.0
-100.0
-Media:  99.5999991894
-
-====================
-(mostra acertos altos no trieno)
-Finished training in 0:28:00.614981
-	Testing...
-Testing Hand Digit Accuracy:  0.0357143
-Testing Font Digit Accuracy:  0.715556
-Testing Font Digit Accuracy:  0.745556
-Testing Font Digit Accuracy:  0.793333
-Testing Font Digit Accuracy:  0.534444
-
-
-
-
-
-
-
-
-
-
+Testing Hand Digit Accuracy:  0.690476
+Testing Font Digit Accuracy:  0.881111
+Testing Font Digit Accuracy:  0.572222
+Testing Font Digit Accuracy:  0.885556
+Testing Font Digit Accuracy:  0.58
+Saved model successfully
+Final test:
+Testing Hand Digit Accuracy:  0.710317
+Testing Font Digit Accuracy:  0.944444
+Testing Font Digit Accuracy:  0.85
+Testing Font Digit Accuracy:  0.958889
+Testing Font Digit Accuracy:  0.746667

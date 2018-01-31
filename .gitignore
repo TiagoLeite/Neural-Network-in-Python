@@ -243,4 +243,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+handwritten/*
+
 # End of https://www.gitignore.io/api/python,pycharm,pycharm+all,pycharm+iml

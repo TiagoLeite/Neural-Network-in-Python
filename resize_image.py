@@ -20,16 +20,10 @@ def resize_image(input_image_path, output_image_path):
 
 name = 'handwritten/Sample%.3d/img%.3d-%.3d.png' % ((1), (1), (1))
 
-resize_image(name, name)
+for k in range(65, 91):
+    a = format(k, 'x')
+    print(a, end=' ')
 
-'''
-for k in range(36):
-    for p in range(1000):
-        name = 'fnt/Sample%.3d/img%.3d-%.5d.png' % ((k+1), (k+1), (p+1))
-        print('Resized image %3d/%3d' % (k, p))
-        resize_image(name, name)'''
 
-'''for k in range(1164):
-    name = 'bananas/{name}.jpg'.format(name=(k+1))
-    resize_image(name, name)
-'''
+# resize_image(name, name)
+
