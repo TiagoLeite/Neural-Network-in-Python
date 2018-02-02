@@ -14,22 +14,33 @@ if os.path.exists(EXPORT_DIR):
     shutil.rmtree(EXPORT_DIR)
 
 iterat = 1
-n_classes = 36
-names = np.arange(1, n_classes+1)
+n_classes = 26
+names = np.arange(65, 91)
 
 
 def read_data(start, end, pattern):
     formatted_data = [[], []]
     random.shuffle(names)
+
+    '''name = 'handwritten/6d/train_6d/train_6d_00000.png'
+    img = Image.open(name).resize((28, 28), resample=Image.NORMAL).convert('L')
+    img_array = 1.0 - (np.array(img).reshape(28 * 28)) / 255.0
+    formatted_data[0].append(img_array)
+    label = [0.0] * n_classes
+    label[0] = 1.0
+    formatted_data[1].append(label)'''
+
     for j in range(n_classes):
-        for k in range(start, end):
-            name = pattern % ((names[j]), (names[j]), (k + 1))
+        for k in range(start, end):  # 'handwritten/$s/train_%s/train_%s_%.5d.png'
+            name = pattern % (format(names[j], 'x'), format(names[j], 'x'), format(names[j], 'x'), k)
             img = Image.open(name).convert('L')
+            # img = Image.open(name)
+            # img = np.mean(img, -1)
             # print(np.shape(img))
-            img_array = (np.array(img).reshape(28 * 28)) / 255.0
+            img_array = 1.0 - (np.array(img).reshape(28 * 28)) / 255.0
             formatted_data[0].append(img_array)
             label = [0.0] * n_classes
-            label[names[j]-1] = 1.0
+            label[names[j]-65] = 1.0
             formatted_data[1].append(label)
     return formatted_data
 
@@ -68,6 +79,18 @@ def batch_norm_infer(Ylogits, offset, mean, var):
     bnepsilon = 1e-5
     Ybn = tf.nn.batch_normalization(Ylogits, mean, var, offset, None, bnepsilon)
     return Ybn
+
+
+def print_image(image_array, w):
+    for k in range(len(image_array[0])):
+        if k % w == 0:
+            print('')
+        # if image_array[0][k] == 1:
+        #    print('0', end='')
+        #else:
+        #    print('1', end='')
+        print(image_array[0][k], end=' ')
+
 
 print("Starting...")
 # sess = tf.InteractiveSession()
@@ -144,57 +167,39 @@ print("Training...")
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     start = datetime.datetime.now()
-    epochs = 20
-    cont = 0
+    epochs = 35
+    epoch_size = 525
     for p in range(epochs):
-        learning_rate = \
-            min_learning_rate + (max_learning_rate - min_learning_rate) * math.exp(- cont / decay_speed)
-        cont += 1
-        '''for i in range(300):
-            batch_font = read_data(i*3, (i+1)*3, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-            # batch_font = mnist.train.next_batch(100)
-            if i % 99 == 0:
+        for i in range(epoch_size):
+            path = 'handwritten/%s/train_%s/train_%s_%.5d.png'
+            batch_font = read_data(i*4, (i+1)*4, path)
+            learning_rate = \
+                min_learning_rate + (max_learning_rate - min_learning_rate) * math.exp(
+                    - (p * epoch_size + i) / decay_speed)
+            if i % 50 == 0:
+                # print_image(batch_font[0], 28)
+                # a = input()
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1],
                                                      keep_prob: 1.0, lr: learning_rate, is_test: True})
-                print('Step %3d/300 of %d/%d, font digit training accuracy %g'
-                      % (i, p, epochs, train_acc))
+                print('Step %3d/%d in epoch %d/%d, training accuracy %g'
+                      % (i, epoch_size, p, epochs, train_acc))
             train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1],
                                       keep_prob: 0.75, is_test: False, lr: learning_rate})
-            update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: cont,
-                                      is_test: False})'''
-        for k in range(10):
-            for j in range(16):
-                # batch = mnist.train.next_batch(100)
-                batch_hand = read_data(j*3, (j+1)*3, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
-                if j == 0:
-                    train_acc = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1],
-                                                         keep_prob: 1.0, lr: learning_rate, is_test: True})
-                    print('Step %3d, hand digit training accuracy %g' % (p, train_acc))
-                train_step.run(feed_dict={x: batch_hand[0], y_: batch_hand[1],
-                                          keep_prob: 0.75, is_test: False, lr: learning_rate})
-                update_ema.run(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, iteration: cont,
-                                          is_test: False})
+            update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0,
+                                      iteration: p * epoch_size + i,
+                                      is_test: False})
 
     end = datetime.datetime.now()
     print("\nFinished training in", (end - start))
     print("\tTesting...")
-
-    batch_hand = read_data(48, 55, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
-    res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, is_test: True})
-    print("Testing Hand Digit Accuracy: ", res)
-
-    '''batch_font = read_data(900, 925, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_test: True})
-    print("Testing Font Digit Accuracy: ", res)
-    batch_font = read_data(925, 950, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_test: True})
-    print("Testing Font Digit Accuracy: ", res)
-    batch_font = read_data(950, 975, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_test: True})
-    print("Testing Font Digit Accuracy: ", res)
-    batch_font = read_data(975, 1000, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-    res = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_test: True})
-    print("Testing Font Digit Accuracy: ", res)'''
+    mean = []
+    path = 'handwritten/%s/train_%s/train_%s_%.5d.png'
+    for k in range(18):
+        batch_hand = read_data(2100+k*20, 2100+(k+1)*20, path)
+        res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, is_test: True})
+        mean.append(res)
+        print("Testing accuracy: ", res)
+    print("Mean accuracy   : ", tf.reduce_mean(mean).eval())
 
     w_c1 = w_conv1.eval(sess)
     b_c1 = b_conv1.eval(sess)
@@ -273,26 +278,19 @@ with graph.as_default():
         sess.run(tf.global_variables_initializer())
         graph_def = graph.as_graph_def()
         tf.train.write_graph(graph_def, EXPORT_DIR, 'mnist_model_graph.pb', as_text=False)
-
         print("Saved model successfully")
 
-        y_ = tf.placeholder('float', [None, 36])
+        y_ = tf.placeholder('float', [None, n_classes])
         correct_prediction = tf.equal(tf.argmax(Y_OUT, 1), tf.argmax(y_, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
-
         print("Final test:")
-        batch_hand = read_data(48, 55, 'handwritten/Sample%.3d/img%.3d-%.3d.png')
-        res = accuracy.eval(feed_dict={X_2: batch_hand[0], y_: batch_hand[1]})
-        print("Testing Hand Digit Accuracy: ", res)
-        batch_font = read_data(900, 925, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-        res = accuracy.eval(feed_dict={X_2: batch_font[0], y_: batch_font[1]})
-        print("Testing Font Digit Accuracy: ", res)
-        batch_font = read_data(925, 950, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-        res = accuracy.eval(feed_dict={X_2: batch_font[0], y_: batch_font[1]})
-        print("Testing Font Digit Accuracy: ", res)
-        batch_font = read_data(950, 975, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-        res = accuracy.eval(feed_dict={X_2: batch_font[0], y_: batch_font[1]})
-        print("Testing Font Digit Accuracy: ", res)
-        batch_font = read_data(975, 1000, 'fnt/Sample%.3d/img%.3d-%.5d.png')
-        res = accuracy.eval(feed_dict={X_2: batch_font[0], y_: batch_font[1]})
-        print("Testing Font Digit Accuracy: ", res)
+
+        mean = []
+        path = 'handwritten/%s/train_%s/train_%s_%.5d.png'
+        for k in range(20):
+            batch_hand = read_data(2000 + k * 20, 2000 + (k + 1) * 20, path)
+            res = accuracy.eval(feed_dict={X_2: batch_hand[0], y_: batch_hand[1]})
+            mean.append(res)
+            print("Testing accuracy: ", res)
+        print("Mean accuracy   : ", tf.reduce_mean(mean).eval())
+

@@ -14,23 +14,6 @@ if os.path.exists(EXPORT_DIR):
 
 iterat = 1
 n_classes = 10
-# model_mean = tf.Variable(tf.float32)
-# model_var = tf.Variable(tf.float32)
-
-
-def read_data(start, end, pattern):
-    formatted_data = [[], []]
-    for j in range(36):
-        for k in range(start, end):
-            name = pattern % ((j + 1), (j + 1), (k + 1))
-            img = Image.open(name).convert('L')
-            # print(np.shape(img))
-            img_array = (np.array(img).reshape(28 * 28)) / 255.0
-            formatted_data[0].append(img_array)
-            label = [0.0] * 36
-            label[j] = 1.0
-            formatted_data[1].append(label)
-    return formatted_data
 
 
 def weight_variable(shape):
@@ -91,7 +74,7 @@ lr = tf.placeholder(tf.float32)
 
 x_input = tf.reshape(x, [-1, 28, 28, 1])
 # Convolutional Layer 1:
-map_size_1 = 10
+map_size_1 = 32
 w_conv1 = weight_variable([6, 6, 1, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # norm_1, mov_avg = batch_norm_layer(logits_1, tf.equal(1, 1), iteration, convolutional=True)
@@ -99,7 +82,7 @@ log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME')  # 
 y_norm, ema1 = batch_norm(log_1, is_test, iteration, b_conv1, convolutional=True)
 y_conv1 = tf.nn.relu(y_norm)
 # Convolutional Layer 2:
-map_size_2 = 10
+map_size_2 = 32
 w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
 b_conv2 = bias_variable([map_size_2])
 log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv2
@@ -107,7 +90,7 @@ log_2_norm, ema2 = batch_norm(log_2, is_test, iteration, b_conv2, convolutional=
 y_conv2 = tf.nn.relu(log_2_norm)
 
 # Convolutional Layer 3:
-map_size_3 = 20
+map_size_3 = 64
 w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
 log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv3
@@ -116,8 +99,8 @@ y_conv3 = tf.nn.relu(log_3_norm)
 
 # Fully connected layer:
 fc_input = tf.reshape(y_conv3, [-1, 7 * 7 * map_size_3])
-w_fc1 = weight_variable([7 * 7 * map_size_3, 100])
-b_fc1 = bias_variable([100])
+w_fc1 = weight_variable([7 * 7 * map_size_3, 256])
+b_fc1 = bias_variable([256])
 log_4 = tf.matmul(fc_input, w_fc1) + b_fc1
 
 log_4_norm, ema4 = batch_norm(log_4, is_test, iteration, b_fc1, convolutional=False)
@@ -128,7 +111,7 @@ keep_prob = tf.placeholder(tf.float32)
 y_fc1_drop = tf.nn.dropout(y_fc1, keep_prob)
 
 # Read out layer:
-w_fc2 = weight_variable([100, n_classes])
+w_fc2 = weight_variable([256, n_classes])
 b_fc2 = bias_variable([n_classes])
 
 y_out = tf.nn.softmax(tf.matmul(y_fc1_drop, w_fc2) + b_fc2)
@@ -153,24 +136,25 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     start = datetime.datetime.now()
     epochs = 1
+    epoch_size = 600
     for p in range(epochs):
-        for i in range(100):
+        for i in range(epoch_size):
             batch_font = mnist.train.next_batch(100)
             learning_rate = \
-                min_learning_rate + (max_learning_rate - min_learning_rate) * math.exp(-(p*600+i)/decay_speed)
+                min_learning_rate + (max_learning_rate - min_learning_rate) * math.exp(-(p * 600 + i) / decay_speed)
             if i % 100 == 0:
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1],
                                                      lr: learning_rate, keep_prob: 1.0, is_test: True})
-                print('Step %3d/600 in epoch %d of %d , training accuracy %g'
-                      % (i, p, epochs, train_acc))
+                print('Step %3d/%d in epoch %d of %d , training accuracy %g'
+                      % (i, epoch_size, p, epochs, train_acc))
             train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], lr: learning_rate, keep_prob: 0.75, is_test: False})
-            update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: p*600+i, is_test: False})
+            update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: p * 600 + i, is_test: False})
     end = datetime.datetime.now()
     print("\nFinished training in", (end - start))
     print("\tTesting...")
     media = []
-    for _ in range(10):
-        batch = mnist.test.next_batch(1000)
+    for _ in range(20):
+        batch = mnist.test.next_batch(500)
         acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0, is_test: True})
         print(100 * acc)
         media.append(acc)
@@ -259,8 +243,8 @@ with graph.as_default():
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
         # print("\nSave file with acc = %g" % accuracy.eval({x_2: mnist.test.images, y_train: mnist.test.labels}, sess))
         partials = []
-        for _ in range(10):
-            batch = mnist.test.next_batch(1000)
+        for _ in range(20):
+            batch = mnist.test.next_batch(500)
             res = accuracy.eval(feed_dict={X_2: batch[0], y_train: batch[1]})
             partials.append(res)
         print(partials)
