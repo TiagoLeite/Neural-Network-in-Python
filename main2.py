@@ -14,33 +14,22 @@ if os.path.exists(EXPORT_DIR):
     shutil.rmtree(EXPORT_DIR)
 
 iterat = 1
-n_classes = 26
-names = np.arange(65, 91)
+n_classes = 62
+names_char = np.arange(0, 62)
+image_size = 32, 32
 
 
 def read_data(start, end, pattern):
     formatted_data = [[], []]
-    random.shuffle(names)
-
-    '''name = 'handwritten/6d/train_6d/train_6d_00000.png'
-    img = Image.open(name).resize((28, 28), resample=Image.NORMAL).convert('L')
-    img_array = 1.0 - (np.array(img).reshape(28 * 28)) / 255.0
-    formatted_data[0].append(img_array)
-    label = [0.0] * n_classes
-    label[0] = 1.0
-    formatted_data[1].append(label)'''
-
+    random.shuffle(names_char)
     for j in range(n_classes):
         for k in range(start, end):  # 'handwritten/$s/train_%s/train_%s_%.5d.png'
-            name = pattern % (format(names[j], 'x'), format(names[j], 'x'), format(names[j], 'x'), k)
+            name = pattern % (names_char[j], names_char[j], k)
             img = Image.open(name).convert('L')
-            # img = Image.open(name)
-            # img = np.mean(img, -1)
-            # print(np.shape(img))
-            img_array = 1.0 - (np.array(img).reshape(28 * 28)) / 255.0
+            img_array = 1.0 - (np.array(img).reshape(32 * 32)) / 255.0
             formatted_data[0].append(img_array)
             label = [0.0] * n_classes
-            label[names[j]-65] = 1.0
+            label[names_char[j]] = 1.0
             formatted_data[1].append(label)
     return formatted_data
 
@@ -96,7 +85,7 @@ print("Starting...")
 # sess = tf.InteractiveSession()
 # mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
-x = tf.placeholder(tf.float32, shape=[None, 784])
+x = tf.placeholder(tf.float32, shape=[None, 32*32])
 y_ = tf.placeholder(tf.float32, shape=[None, n_classes])
 is_test = tf.placeholder(tf.bool)
 iteration = tf.placeholder(tf.int32)
@@ -104,7 +93,7 @@ lr = tf.placeholder(tf.float32)
 
 # ===== Model =====
 
-x_input = tf.reshape(x, [-1, 28, 28, 1])
+x_input = tf.reshape(x, [-1, 32, 32, 1])
 # Convolutional Layer 1:
 map_size_1 = 32
 w_conv1 = weight_variable([6, 6, 1, map_size_1])
@@ -130,8 +119,8 @@ log_3_norm, ema3 = batch_norm(log_3, is_test, iteration, b_conv3, convolutional=
 y_conv3 = tf.nn.relu(log_3_norm)
 
 # Fully connected layer:
-fc_input = tf.reshape(y_conv3, [-1, 7 * 7 * map_size_3])
-w_fc1 = weight_variable([7 * 7 * map_size_3, 256])
+fc_input = tf.reshape(y_conv3, [-1, 8 * 8 * map_size_3])
+w_fc1 = weight_variable([8 * 8 * map_size_3, 256])
 b_fc1 = bias_variable([256])
 log_4 = tf.matmul(fc_input, w_fc1) + b_fc1
 
@@ -167,18 +156,16 @@ print("Training...")
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     start = datetime.datetime.now()
-    epochs = 35
-    epoch_size = 525
+    epochs = 1
+    epoch_size = 1800
     for p in range(epochs):
         for i in range(epoch_size):
-            path = 'handwritten/%s/train_%s/train_%s_%.5d.png'
-            batch_font = read_data(i*4, (i+1)*4, path)
+            path = 'handwritten_v2/%d/train_%d/%d.png'
+            batch_font = read_data(i * 2, (i + 1) * 2, path)
             learning_rate = \
                 min_learning_rate + (max_learning_rate - min_learning_rate) * math.exp(
                     - (p * epoch_size + i) / decay_speed)
-            if i % 50 == 0:
-                # print_image(batch_font[0], 28)
-                # a = input()
+            if i % 100 == 0:
                 train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1],
                                                      keep_prob: 1.0, lr: learning_rate, is_test: True})
                 print('Step %3d/%d in epoch %d/%d, training accuracy %g'
@@ -193,13 +180,13 @@ with tf.Session() as sess:
     print("\nFinished training in", (end - start))
     print("\tTesting...")
     mean = []
-    path = 'handwritten/%s/train_%s/train_%s_%.5d.png'
-    for k in range(18):
-        batch_hand = read_data(2100+k*20, 2100+(k+1)*20, path)
+    path = 'handwritten_v2/%d/train_%d/%d.png'
+    for k in range(10):
+        batch_hand = read_data(3600 + k * 2, 3600 + (k + 1) * 2, path)
         res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, is_test: True})
         mean.append(res)
         print("Testing accuracy: ", res)
-    print("Mean accuracy   : ", tf.reduce_mean(mean).eval())
+    print("=========\nMean accuracy   : ", tf.reduce_mean(mean).eval())
 
     w_c1 = w_conv1.eval(sess)
     b_c1 = b_conv1.eval(sess)
@@ -228,8 +215,8 @@ graph = tf.Graph()
 
 with graph.as_default():
 
-    X_2 = tf.placeholder('float32', shape=[None, 28 * 28], name='input')
-    X_IMAGE = tf.reshape(X_2, [-1, 28, 28, 1])
+    X_2 = tf.placeholder('float32', shape=[None, 32 * 32], name='input')
+    X_IMAGE = tf.reshape(X_2, [-1, 32, 32, 1])
 
     exps0 = tf.constant(variables[0])
     exps1 = tf.constant(variables[1])
@@ -264,7 +251,7 @@ with graph.as_default():
     # Fully connected layer:
     W_FC1 = tf.constant(w_fc1)
     B_FC1 = tf.constant(b_fc1)
-    FC_INPUT = tf.reshape(Y_C3, [-1, 7 * 7 * map_size_3])
+    FC_INPUT = tf.reshape(Y_C3, [-1, 8 * 8 * map_size_3])
     LOG_4 = tf.matmul(FC_INPUT, W_FC1)
     Y_NORM4 = batch_norm_infer(LOG_4, B_FC1, exps6,  exps7)
     Y_FC1 = tf.nn.relu(Y_NORM4)

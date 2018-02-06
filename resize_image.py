@@ -1,8 +1,8 @@
 import os
 from PIL import Image
-limit = 2473
+limit = 4133
 
-size = 28, 28
+size = 32, 32
 
 
 def resize_image(input_image_path, output_image_path):
@@ -38,27 +38,18 @@ def crop_image(img_path, xy, scale_factor):
     cropped_img.save(img_path)
 
 
-for k in range(65, 91):
-    hex_val = format(k, 'x')
-    print('Resizing %d' % k)
+for k in range(0, 62):
+    print('Cropping and resizing %d' % k)
     for j in range(limit):
-        name = 'handwritten/'+hex_val+'/train_'+hex_val+'/train_'+hex_val+'_%.5d.png' % j
-        # crop_image(name, [0.5, 0.5], 1.5)
-        resize_image(name, name)
-
-for k in range(48, 58):
-    hex_val = format(k, 'x')
-    print('Cropping %d' % k)
-    for j in range(limit):
-        name = 'handwritten/'+hex_val+'/train_'+hex_val+'/train_'+hex_val+'_%.5d.png' % j
+        name = 'handwritten_v2/'+str(k)+'/train_'+str(k)+'/'+str(j)+'.png'
         crop_image(name, [0.5, 0.5], 1.5)
-        # resize_image(name, name)
+        resize_image(name, name)
 
-for k in range(48, 58):
+'''for k in range(48, 58):
     hex_val = format(k, 'x')
     print('Cropping %d' % k)
     for j in range(limit):
         name = 'handwritten/'+hex_val+'/train_'+hex_val+'/train_'+hex_val+'_%.5d.png' % j
         # crop_image(name, [0.5, 0.5], 1.5)
-        resize_image(name, name)
+        resize_image(name, name)'''
 

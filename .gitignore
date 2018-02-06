@@ -244,6 +244,7 @@ venv.bak/
 .mypy_cache/
 
 handwritten/*
+handwritten_v2/*
 
 model.txt
 
