@@ -95,7 +95,7 @@ lr = tf.placeholder(tf.float32)
 
 x_input = tf.reshape(x, [-1, 32, 32, 1])
 # Convolutional Layer 1:
-map_size_1 = 16
+map_size_1 = 32
 w_conv1 = weight_variable([6, 6, 1, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # norm_1, mov_avg = batch_norm_layer(logits_1, tf.equal(1, 1), iteration, convolutional=True)
@@ -103,7 +103,7 @@ log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME')  # 
 y_norm, ema1 = batch_norm(log_1, is_test, iteration, b_conv1, convolutional=True)
 y_conv1 = tf.nn.relu(y_norm)
 # Convolutional Layer 2:
-map_size_2 = 20
+map_size_2 = 32
 w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
 b_conv2 = bias_variable([map_size_2])
 log_2 = tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv2
@@ -111,40 +111,40 @@ log_2_norm, ema2 = batch_norm(log_2, is_test, iteration, b_conv2, convolutional=
 y_conv2 = tf.nn.relu(log_2_norm)
 
 # Convolutional Layer 3:
-map_size_3 = 28
+map_size_3 = 48
 w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
-log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv3
+log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 1, 1, 1], padding='SAME')  # + b_conv3
 log_3_norm, ema3 = batch_norm(log_3, is_test, iteration, b_conv3, convolutional=True)
 y_conv3 = tf.nn.relu(log_3_norm)
 
 # Convolutional Layer 4:
-map_size_4 = 36
+map_size_4 = 48
 w_conv4 = weight_variable([4, 4, map_size_3, map_size_4])
 b_conv4 = bias_variable([map_size_4])
 log_4 = tf.nn.conv2d(y_conv3, w_conv4, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv3
 log_4_norm, ema4 = batch_norm(log_4, is_test, iteration, b_conv4, convolutional=True)
 y_conv4 = tf.nn.relu(log_4_norm)
 
+# Convolutional Layer 5:
+map_size_5 = 64
+w_conv5 = weight_variable([4, 4, map_size_4, map_size_5])
+b_conv5 = bias_variable([map_size_5])
+log_5 = tf.nn.conv2d(y_conv4, w_conv5, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv3
+log_5_norm, ema5 = batch_norm(log_5, is_test, iteration, b_conv5, convolutional=True)
+y_conv5 = tf.nn.relu(log_5_norm)
+
 # Fully connected layer:
-fc_input = tf.reshape(y_conv4, [-1, 4 * 4 * map_size_4])
-w_fc1 = weight_variable([4 * 4 * map_size_4, 256])
+fc_input = tf.reshape(y_conv5, [-1, 4 * 4 * map_size_5])
+w_fc1 = weight_variable([4 * 4 * map_size_5, 256])
 b_fc1 = bias_variable([256])
-log_5 = tf.matmul(fc_input, w_fc1) + b_fc1
-log_5_norm, ema5 = batch_norm(log_5, is_test, iteration, b_fc1, convolutional=False)
-y_fc1 = tf.nn.relu(log_5_norm)
+log_6 = tf.matmul(fc_input, w_fc1) + b_fc1
+log_6_norm, ema6 = batch_norm(log_6, is_test, iteration, b_fc1, convolutional=False)
+y_fc1 = tf.nn.relu(log_6_norm)
 
 # Dropout:
 keep_prob = tf.placeholder(tf.float32)
 y_fc1_drop = tf.nn.dropout(y_fc1, keep_prob)
-
-# Fully connected layer 2:
-w_fc2 = weight_variable([256, 256])
-b_fc2 = bias_variable([256])
-log_6 = tf.matmul(y_fc1_drop, w_fc2) + b_fc2
-log_6_norm, ema6 = batch_norm(log_6, is_test, iteration, b_fc2, convolutional=False)
-y_fc2 = tf.nn.relu(log_6_norm)
-y_fc2_drop = tf.nn.dropout(y_fc2, keep_prob)
 
 # Read out layer:
 w_fc3 = weight_variable([256, n_classes])
@@ -162,7 +162,7 @@ correct_prediction = tf.equal(tf.argmax(y_out, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # learning rate decay
-max_learning_rate = 0.025
+max_learning_rate = 0.004
 min_learning_rate = 0.0001
 decay_speed = 1600
 
@@ -171,7 +171,7 @@ print("Training...")
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     start = datetime.datetime.now()
-    epochs = 5
+    epochs = 36
     epoch_size = 360
     for p in range(epochs):
         for i in range(epoch_size):
