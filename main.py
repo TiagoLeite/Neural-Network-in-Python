@@ -5,6 +5,7 @@ import os
 import datetime
 import pickle
 import numpy as np
+import math
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -88,10 +89,10 @@ def bias_variable(shape):
 
 # ===== Model =====
 
-x_input = tf.reshape(x, [-1, 28, 28, 1])
+x_input = tf.reshape(x, [-1, 32, 32, 3])
 # Convolutional Layer 1:
 map_size_1 = 32
-w_conv1 = weight_variable([6, 6, 1, map_size_1])
+w_conv1 = weight_variable([6, 6, 3, map_size_1])
 b_conv1 = bias_variable([map_size_1])
 # norm_1, mov_avg = batch_norm_layer(logits_1, tf.equal(1, 1), iteration, convolutional=True)
 log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME')  # + b_conv1
@@ -106,24 +107,31 @@ log_2_norm, ema2 = batch_norm(log_2, is_test, iteration, b_conv2, convolutional=
 y_conv2 = tf.nn.relu(log_2_norm)
 
 # Convolutional Layer 3:
-map_size_3 = 64
+map_size_3 = 48
 w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
-log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv3
+log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 1, 1, 1], padding='SAME')  # + b_conv3
 log_3_norm, ema3 = batch_norm(log_3, is_test, iteration, b_conv3, convolutional=True)
 y_conv3 = tf.nn.relu(log_3_norm)
 
+# Convolutional Layer 4:
+map_size_4 = 64
+w_conv4 = weight_variable([4, 4, map_size_3, map_size_4])
+b_conv4 = bias_variable([map_size_4])
+log_4 = tf.nn.conv2d(y_conv3, w_conv4, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv3
+log_4_norm, ema4 = batch_norm(log_4, is_test, iteration, b_conv4, convolutional=True)
+y_conv4 = tf.nn.relu(log_4_norm)
+
 # Fully connected layer:
-fc_input = tf.reshape(y_conv3, [-1, 7 * 7 * map_size_3])
-w_fc1 = weight_variable([7 * 7 * map_size_3, 256])
+fc_input = tf.reshape(y_conv4, [-1, 8 * 8 * map_size_4])
+w_fc1 = weight_variable([8 * 8 * map_size_4, 256])
 b_fc1 = bias_variable([256])
 log_4 = tf.matmul(fc_input, w_fc1) + b_fc1
 
-log_4_norm, ema4 = batch_norm(log_4, is_test, iteration, b_fc1, convolutional=False)
+log_4_norm, ema_f = batch_norm(log_4, is_test, iteration, b_fc1, convolutional=False)
 y_fc1 = tf.nn.relu(log_4_norm)
 
 # Dropout:
-keep_prob = tf.placeholder(tf.float32)
 y_fc1_drop = tf.nn.dropout(y_fc1, keep_prob)
 
 # Read out layer:
@@ -132,10 +140,9 @@ b_fc2 = bias_variable([n_classes])
 
 y_out = tf.nn.softmax(tf.matmul(y_fc1_drop, w_fc2) + b_fc2)
 
-update_ema = tf.group(ema1, ema2, ema3, ema4)
+update_ema = tf.group(ema1, ema2, ema3, ema4, ema_f)
 
-
-# =========
+# =========================
 
 load_datasets()
 
@@ -145,30 +152,33 @@ train_step = tf.train.AdamOptimizer(lr).minimize(loss_cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_out, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # learning rate decay
-max_learning_rate = 0.02
+max_learning_rate = 0.005
 min_learning_rate = 0.0001
-decay_speed = 160
+decay_speed = 1600
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
-    batch_test = get_batch(0, 1000, 5)  # 500 images for testing while training so we can see the evolution of accuracy
+    # batch_test = get_batch(0, 300, 5)  # 500 images for testing while training so we can see the evolution of accuracy
     start_time = datetime.datetime.now()
+    it_cont = -1
     print("Training...")
     for epoch in range(epochs):
         print("Started epoch: ", (epoch+1), '/', epochs)
         for file_train in range(5):  # there are 5 files for training
             batches = 100
             for k in range(batches):
-                batch_font = get_batch(100 * k, 100, file_train)  # gets the next 50 train images
+                it_cont += 1
+                learning_rate \
+                    = min_learning_rate + (max_learning_rate - min_learning_rate)*math.exp(-it_cont/decay_speed)
+                batch_font = get_batch(100 * k, 100, file_train)  # gets the next 100 train images
                 train_step.run(
                     feed_dict={x: batch_font[0], y_: batch_font[1], lr: learning_rate, keep_prob: 0.75, is_test: False})
-                update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: p * 600 + i,
+                update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0,
+                                          iteration: it_cont,
                                           is_test: False})
-                if k % 25 == 0:
-                    print('Reached step %3d' % k, '(of 100) of train file', (file_train+1), '(of 5) with accuracy ', end='')
-                    print(accuracy.eval(feed_dict={x: batch_test[0], y_: batch_test[1], keep_prob: 1.0, is_training: False}))
-        # save_path = saver.save(sess, "save/saved_net.ckpt")
-        # print("Saved to:", save_path)
+                if k % 10 == 0:
+                    print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
+                    print(accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_test: True}))
     time_end = datetime.datetime.now()
     print("\nFinished training in", (time_end - start_time))
     print("Epochs: ", epochs)
@@ -178,6 +188,6 @@ with tf.Session() as sess:
         batch_test = get_batch(k*1000, 1000, file_test)
         print("Size test:", len(batch_test[0]))
         print('Test %d accuracy =' % k, end=' ')
-        print(accuracy.eval(feed_dict={x: batch_test[0], y_: batch_test[1], keep_prob: 1.0, is_training: False}))
-        print("loss:", cost.eval(feed_dict={x: batch_test[0], y_: batch_test[1], keep_prob: 1.0, is_training: False}))
+        print(accuracy.eval(feed_dict={x: batch_test[0], y_: batch_test[1], keep_prob: 1.0, is_test: False}))
+        print("loss:", loss_cross_entropy.eval(feed_dict={x: batch_test[0], y_: batch_test[1], keep_prob: 1.0, is_test: False}))
 
