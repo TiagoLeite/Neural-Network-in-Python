@@ -107,7 +107,7 @@ log_2_norm, ema2 = batch_norm(log_2, is_test, iteration, b_conv2, convolutional=
 y_conv2 = tf.nn.relu(log_2_norm)
 
 # Convolutional Layer 3:
-map_size_3 = 48
+map_size_3 = 64
 w_conv3 = weight_variable([4, 4, map_size_2, map_size_3])
 b_conv3 = bias_variable([map_size_3])
 log_3 = tf.nn.conv2d(y_conv2, w_conv3, strides=[1, 1, 1, 1], padding='SAME')  # + b_conv3
@@ -146,13 +146,13 @@ update_ema = tf.group(ema1, ema2, ema3, ema4, ema_f)
 
 load_datasets()
 
-epochs = 20
+epochs = 16
 loss_cross_entropy = 100*tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_out))
 train_step = tf.train.AdamOptimizer(lr).minimize(loss_cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_out, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # learning rate decay
-max_learning_rate = 0.005
+max_learning_rate = 0.01
 min_learning_rate = 0.0001
 decay_speed = 1600
 
@@ -172,22 +172,24 @@ with tf.Session() as sess:
                     = min_learning_rate + (max_learning_rate - min_learning_rate)*math.exp(-it_cont/decay_speed)
                 batch_font = get_batch(100 * k, 100, file_train)  # gets the next 100 train images
                 train_step.run(
-                    feed_dict={x: batch_font[0], y_: batch_font[1], lr: learning_rate, keep_prob: 0.75, is_test: False})
+                    feed_dict={x: batch_font[0], y_: batch_font[1], lr: learning_rate, keep_prob: 0.7, is_test: False})
                 update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0,
                                           iteration: it_cont,
                                           is_test: False})
                 if k % 10 == 0:
-                    print('Reached step %3d' % k, '(of 200) of train file', (file_train+1), '(of 5) with accuracy ', end='')
+                    print('Reached step %3d' % k, '(of 100) of train file', (file_train+1), '(of 5) with accuracy ', end='')
                     print(accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, is_test: True}))
     time_end = datetime.datetime.now()
     print("\nFinished training in", (time_end - start_time))
     print("Epochs: ", epochs)
     print("Testing...")
+    mean = []
     file_test = 5  # the 5th element corresponds to the test file in the datasets list
-    for k in range(10):
-        batch_test = get_batch(k*1000, 1000, file_test)
-        print("Size test:", len(batch_test[0]))
+    for k in range(100):
+        batch_test = get_batch(k*100, 100, file_test)
         print('Test %d accuracy =' % k, end=' ')
-        print(accuracy.eval(feed_dict={x: batch_test[0], y_: batch_test[1], keep_prob: 1.0, is_test: False}))
+        acc_test = accuracy.eval(feed_dict={x: batch_test[0], y_: batch_test[1], keep_prob: 1.0, is_test: False})
+        print(acc_test)
+        mean.append(acc_test)
         print("loss:", loss_cross_entropy.eval(feed_dict={x: batch_test[0], y_: batch_test[1], keep_prob: 1.0, is_test: False}))
-
+    print("Mean: ", tf.reduce_mean(mean).eval())
