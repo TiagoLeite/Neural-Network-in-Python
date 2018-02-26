@@ -19,7 +19,6 @@ keep_prob = tf.placeholder(tf.float32)
 datasets = []
 
 
-
 def unplicke(file):
     with open(file, 'rb') as fo:
         dictionary = pickle.load(fo, encoding='bytes')
@@ -60,13 +59,11 @@ def get_batch(start, batch_size, dataset_index):
 def batch_norm(Ylogits, is_test, iteration, offset, convolutional=False):
     exp_moving_avg = tf.train.ExponentialMovingAverage(0.999, iteration)  # adding the iteration prevents from averaging across non-existing iterations
     bnepsilon = 1e-5
-    global model_mean, model_var
     if convolutional:
         mean, variance = tf.nn.moments(Ylogits, [0, 1, 2])
     else:
         mean, variance = tf.nn.moments(Ylogits, [0])
     update_moving_averages = exp_moving_avg.apply([mean, variance])
-
     m = tf.cond(is_test, lambda: exp_moving_avg.average(mean), lambda: mean)
     v = tf.cond(is_test, lambda: exp_moving_avg.average(variance), lambda: variance)
     Ybn = tf.nn.batch_normalization(Ylogits, m, v, offset, None, bnepsilon)
@@ -94,10 +91,10 @@ x_input = tf.reshape(x, [-1, 32, 32, 3])
 map_size_1 = 32
 w_conv1 = weight_variable([6, 6, 3, map_size_1])
 b_conv1 = bias_variable([map_size_1])
-# norm_1, mov_avg = batch_norm_layer(logits_1, tf.equal(1, 1), iteration, convolutional=True)
 log_1 = tf.nn.conv2d(x_input, w_conv1, strides=[1, 1, 1, 1], padding='SAME')  # + b_conv1
 y_norm, ema1 = batch_norm(log_1, is_test, iteration, b_conv1, convolutional=True)
 y_conv1 = tf.nn.relu(y_norm)
+
 # Convolutional Layer 2:
 map_size_2 = 32
 w_conv2 = weight_variable([5, 5, map_size_1, map_size_2])
@@ -122,39 +119,51 @@ log_4 = tf.nn.conv2d(y_conv3, w_conv4, strides=[1, 2, 2, 1], padding='SAME')  # 
 log_4_norm, ema4 = batch_norm(log_4, is_test, iteration, b_conv4, convolutional=True)
 y_conv4 = tf.nn.relu(log_4_norm)
 
-# Fully connected layer:
-fc_input = tf.reshape(y_conv4, [-1, 8 * 8 * map_size_4])
-w_fc1 = weight_variable([8 * 8 * map_size_4, 256])
-b_fc1 = bias_variable([256])
-log_4 = tf.matmul(fc_input, w_fc1) + b_fc1
+# Convolutional Layer 5:
+map_size_5 = 96
+w_conv5 = weight_variable([4, 4, map_size_4, map_size_5])
+b_conv5 = bias_variable([map_size_5])
+log_5 = tf.nn.conv2d(y_conv4, w_conv5, strides=[1, 1, 1, 1], padding='SAME')  # + b_conv3
+log_5_norm, ema5 = batch_norm(log_5, is_test, iteration, b_conv5, convolutional=True)
+y_conv5 = tf.nn.relu(log_5_norm)
 
-log_4_norm, ema_f = batch_norm(log_4, is_test, iteration, b_fc1, convolutional=False)
-y_fc1 = tf.nn.relu(log_4_norm)
+# Fully connected layer:
+fc_input = tf.reshape(y_conv5, [-1, 8 * 8 * map_size_5])
+w_fc1 = weight_variable([8 * 8 * map_size_5, 256])
+b_fc1 = bias_variable([256])
+log_f = tf.matmul(fc_input, w_fc1)  # + b_fc1
+log_f_norm, ema_f = batch_norm(log_f, is_test, iteration, b_fc1, convolutional=False)
+y_fc1 = tf.nn.relu(log_f_norm)
 
 # Dropout:
 y_fc1_drop = tf.nn.dropout(y_fc1, keep_prob)
 
+w_fc2 = weight_variable([256, 64])
+b_fc2 = bias_variable([64])
+log_fc2 = tf.matmul(y_fc1_drop, w_fc2)  # + b_fc1
+log_fc2_norm, ema_f2 = batch_norm(log_fc2, is_test, iteration, b_fc2, convolutional=False)
+y_fc2 = tf.nn.relu(log_fc2_norm)
+y_fc2_drop = tf.nn.dropout(y_fc2, keep_prob)
+
 # Read out layer:
-w_fc2 = weight_variable([256, n_classes])
-b_fc2 = bias_variable([n_classes])
+w_out = weight_variable([64, n_classes])
+b_out = bias_variable([n_classes])
+y_out = tf.nn.softmax(tf.matmul(y_fc2_drop, w_out) + b_out)
 
-y_out = tf.nn.softmax(tf.matmul(y_fc1_drop, w_fc2) + b_fc2)
-
-update_ema = tf.group(ema1, ema2, ema3, ema4, ema_f)
+update_ema = tf.group(ema1, ema2, ema3, ema4, ema5, ema_f, ema_f2)
 
 # =========================
 
 load_datasets()
-
 epochs = 16
 loss_cross_entropy = 100*tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_out))
 train_step = tf.train.AdamOptimizer(lr).minimize(loss_cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_out, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # learning rate decay
-max_learning_rate = 0.01
+max_learning_rate = 0.004
 min_learning_rate = 0.0001
-decay_speed = 1600
+decay_speed = 1000
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
