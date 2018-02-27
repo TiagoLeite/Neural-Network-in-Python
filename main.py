@@ -1,159 +1,127 @@
-# Tiago de Miranda Leite, 7595289
-
 import tensorflow as tf
 import os
 import datetime
-import pickle
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+IMG_HEIGHT = 32
+IMG_WIDTH = 32
+MIN_SIZE = 1
+MAX_SIZE = 5
+NUM_IMAGES = 10000
+NUM_OBJECTS = 1
 
-n_classes = 10
-x = tf.placeholder('float', [None, 3 * 1024])
-y = tf.placeholder('float', [None, n_classes])
-phase = tf.placeholder(tf.bool, name='phase')
-keep_prob = tf.placeholder(tf.float32)
-datasets = []
+bboxes = np.zeros((NUM_IMAGES, NUM_OBJECTS, 4))
+imgs = np.zeros((NUM_IMAGES, IMG_WIDTH, IMG_HEIGHT))
 
+for i_image in range(NUM_IMAGES):
+    for i_object in range(NUM_OBJECTS):
+        x = np.random.randint(0, IMG_WIDTH-MAX_SIZE+1)
+        y = np.random.randint(0, IMG_HEIGHT-MAX_SIZE+1)
+        width = x + np.random.randint(MIN_SIZE, MAX_SIZE)
+        height = y + np.random.randint(MIN_SIZE, MAX_SIZE)
+        imgs[i_image, x:x+width, y:y+height] = 1
+        bboxes[i_image, i_object] = [x, y, width, height]
 
-def unplicke(file):
-    with open(file, 'rb') as fo:
-        dictionary = pickle.load(fo, encoding='bytes')
-    return dictionary
+i = 0
+plt.imshow(imgs[i].T, cmap="Accent", interpolation='none', origin='lower', extent=[0, IMG_WIDTH, 0, IMG_HEIGHT])
 
+x_image = (imgs.reshape(NUM_IMAGES, -1) - np.mean(imgs)) / np.std(imgs)
+y_bboxes = bboxes.reshape(NUM_IMAGES, -1) / np.max((IMG_HEIGHT, IMG_WIDTH))
 
-def conv2d(x, W):
-    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+print(x_image.shape)
 
+train_size = int(0.8 * NUM_IMAGES)
+x_train = x_image[:train_size]
+x_test = x_image[train_size:]
+y_train = y_bboxes[:train_size]
+y_test = y_bboxes[train_size:]
 
-def maxpool2d(x):
-    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+x = tf.placeholder(tf.float32, shape=[None, IMG_WIDTH * IMG_HEIGHT])
+y_ = tf.placeholder(tf.float32, shape=[None, NUM_OBJECTS*4])
 
+# Model:
+print(x.shape)
+x_input = tf.reshape(x, [-1, IMG_WIDTH, IMG_HEIGHT, 1])
 
-#                               size of window    movement of window
+w_conv1 = tf.Variable(tf.truncated_normal(shape=[3, 3, 1, 16], stddev=0.1))
+b_conv1 = tf.Variable(tf.ones(shape=[16])/10.0)
+y_conv1 = tf.nn.relu(tf.nn.conv2d(x_input, w_conv1, strides=[1, 2, 2, 1], padding="SAME") + b_conv1)
 
+w_conv2 = tf.Variable(tf.truncated_normal(shape=[3, 3, 16, 32], stddev=0.1))
+b_conv2 = tf.Variable(tf.ones(shape=[32])/10.0)
+y_conv2 = tf.nn.relu(tf.nn.conv2d(y_conv1, w_conv2, strides=[1, 2, 2, 1], padding="SAME"))
 
-def load_datasets():  # loads all the train and test files to "datasets" list
-    print("Loading files...")
-    for k in range(5):
-        file_name = 'data_batch_' + str(k + 1)
-        datasets.append(unplicke(file_name))
-    file_name = 'test_batch'
-    datasets.append(unplicke(file_name))
+fc_input = tf.reshape(y_conv2, [-1, 8 * 8 * 32])
+w_fc = tf.Variable(tf.truncated_normal(shape=[8 * 8 * 32, 128], stddev=0.1))
+b_fc = tf.Variable(tf.ones(shape=[128])/10.0)
 
+y_fc = tf.nn.relu(tf.matmul(fc_input, w_fc) + b_fc)
 
-def get_batch(start, batch_size, dataset_index):
-    dictionary = datasets[dataset_index]
-    array_data = dictionary[b'data']
-    labels = dictionary[b'labels']
-    batch = [[], []]  # first for the data array and second for the labels, like mnist
-    for i in range(start, start + batch_size):
-        batch[0].append(array_data[i])
-        label_array = np.zeros(n_classes)
-        label_array[labels[i]] = 1  # puts the value 1 in the corresponding position
-        batch[1].append(label_array)
-    return batch
+w_out = tf.Variable(tf.truncated_normal(shape=[128, 4], stddev=0.1))
+b_out = tf.Variable(tf.ones(shape=[4])/10.0)
 
-
-def convolutional_neural_network(x):
-    weights = {'w_conv1': tf.Variable(tf.truncated_normal([3, 3, 3, 32], stddev=0.05)),
-               'w_conv1_2': tf.Variable(tf.truncated_normal([3, 3, 32, 32], stddev=0.05)),
-               'w_conv2': tf.Variable(tf.truncated_normal([3, 3, 32, 64], stddev=0.05)),
-               'w_conv2_2': tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.05)),
-               # 'w_conv3': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.05)),
-               # 'w_conv3_2': tf.Variable(tf.truncated_normal([5, 5, 64, 64], stddev=0.05)),
-               'w_fc': tf.Variable(tf.truncated_normal([8 * 8 * 64, 512], stddev=0.05)),
-               'w_fc2': tf.Variable(tf.truncated_normal([512, 128], stddev=0.05)),
-               'out': tf.Variable(tf.truncated_normal([128, n_classes], stddev=0.05))}
-
-    biases = {'b_conv1': tf.Variable(tf.constant(0.05, dtype='float32')),
-              'b_conv1_2': tf.Variable(tf.constant(0.05, dtype='float32')),
-              'b_conv2': tf.Variable(tf.constant(0.05, dtype='float32')),
-              'b_conv2_2': tf.Variable(tf.constant(0.05, dtype='float32')),
-              'b_conv3': tf.Variable(tf.constant(0.05, dtype='float32')),
-              'b_conv3_2': tf.Variable(tf.constant(0.05, dtype='float32')),
-              'b_fc': tf.Variable(tf.constant(0.05, dtype='float32')),
-              'b_fc2': tf.Variable(tf.constant(0.05, dtype='float32')),
-              'out': tf.Variable(tf.constant(0.05, dtype='float32'))}
-
-    x = tf.reshape(x, shape=[-1, 32, 32, 3])
-    x_norm = tf.nn.batch_normalization(x,
-                                       0,
-                                       1,
-                                       offset=5,
-                                       scale=True,
-                                       variance_epsilon=1e-8)
-
-    # convolutional layer 1:
-    conv1 = tf.nn.elu(conv2d(x_norm, weights['w_conv1']) + biases['b_conv1'])
-    norm1 = tf.nn.lrn(conv1, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
-    # conv1_pool = maxpool2d(norm1)
-    conv1_1 = tf.nn.elu(conv2d(norm1, weights['w_conv1_2']) + biases['b_conv1_2'])
-    norm1_1 = tf.nn.lrn(conv1_1, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
-    conv1_1_pool = maxpool2d(norm1_1)
-    # convolutional layer 2:
-    conv2 = tf.nn.elu(conv2d(conv1_1_pool, weights['w_conv2']) + biases['b_conv2'])
-    norm2 = tf.nn.lrn(conv2, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
-    # conv2_pool = maxpool2d(norm2)
-    conv2_2 = tf.nn.elu(conv2d(norm2, weights['w_conv2_2']) + biases['b_conv2_2'])
-    norm2_2 = tf.nn.lrn(conv2_2, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
-    conv2_2_pool = maxpool2d(norm2_2)
-    # convolutional layer 3:
-    # conv3 = tf.nn.relu(conv2d(norm2, weights['w_conv3']) + biases['b_conv3'])
-    # conv3_2 = tf.nn.relu(conv2d(conv3, weights['w_conv3_2']) + biases['b_conv3_2'])
-    # conv3_2_pool = maxpool2d(conv3_2)
-    # norm3 = tf.nn.lrn(conv3_2_pool, depth_radius=5, bias=2.0, alpha=1e-3, beta=0.75, name='norm2')
-    # fully connected layer
-    fc = tf.reshape(conv2_2_pool, [-1, 8 * 8 * 64])
-    fc_out = tf.nn.elu(tf.matmul(fc, weights['w_fc']) + biases['b_fc'])
-    fc_drop = tf.nn.dropout(fc_out, keep_prob)
-    # fully connected layer 2
-    fc2 = tf.nn.elu(tf.matmul(fc_drop, weights['w_fc2']) + biases['b_fc2'])
-    fc2_drop = tf.nn.dropout(fc2, keep_prob)
-    # output layer
-    output = tf.matmul(fc2_drop, weights['out']) + biases['out']
-
-    return output
+y_out = tf.matmul(y_fc, w_out)+b_out
 
 
-def train_neural_network(x):  # x is the input data
+# loss_cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_out))
 
-    epochs = 60
-    prediction = convolutional_neural_network(x)
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
-    optimizer = tf.train.AdamOptimizer(1e-3).minimize(cost)
-    correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        batch_test = get_batch(0, 1000,
-                               5)  # 1000 images for testing while training so we can see the evolution of accuracy
-        start_time = datetime.datetime.now()
-        print("Training...")
-        for epoch in range(epochs):
-            print("Started epoch: ", (epoch + 1), '/', epochs)
-            for file_train in range(5):  # there are 5 files for training
-                batches = 100
-                for k in range(batches):
-                    batch = get_batch(100 * k, 100, file_train)  # gets the next 50 train images
-                    sess.run(optimizer, feed_dict={x: batch[0], y: batch[1], keep_prob: 0.8, phase: True})
-                    if k % 10 == 0:
-                        print('Reached step %3d' % k, '(of %d)' % batches, 'of train file', (file_train + 1),
-                              '(of 5) with accuracy ', end='')
-                        print(
-                            accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0, phase: False}))
-        time_end = datetime.datetime.now()
-        print("\nFinished training in", (time_end - start_time))
-        print("Epochs: ", epochs)
-        print("Testing...")
-        file_test = 5  # the 5th element corresponds to the test file in the datasets list
-        for k in range(10):
-            batch_test = get_batch(k * 1000, 1000, file_test)
-            print("Size test:", len(batch_test[0]))
-            print('Test %d accuracy =' % k, end=' ')
-            print(accuracy.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0, phase: True}))
-            print("loss:", cost.eval(feed_dict={x: batch_test[0], y: batch_test[1], keep_prob: 1.0, phase: True}))
+loss_cross_entropy = tf.reduce_mean(tf.reduce_sum(tf.squared_difference(y_, y_out), axis=[1]))
+train_step = tf.train.AdamOptimizer().minimize(loss_cross_entropy)
+accuracy = tf.reduce_sum(tf.squared_difference(y_, y_out))
+
+epochs = 5
+
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    for epoch in range(epochs):
+        print("Started epoch ", epoch)
+        for k in range(int(0.8 * NUM_IMAGES/100)):
+            x_data = x_train[k:100*(k+1)]
+            y_data = y_train[k:100*(k+1)]
+            # print(x_data.shape)
+            # print(y_data.shape)
+            _, loss = sess.run([train_step, loss_cross_entropy], feed_dict={x: x_data, y_: y_data})
+            if k % 10 == 0:
+                print(loss)
+                # print(accuracy.eval(feed_dict={x: x_data, y_: y_data}))
+
+    loss = sess.run(loss_cross_entropy, feed_dict={x: x_test, y_: y_test})
+    print(x_test.shape)
+    print("Test loss:", loss)
+
+    i = 0
+
+    b = sess.run(y_out, feed_dict={x: x_train, y_: y_train})
+
+    print(b[0])
+
+    for k in range(10):
+        plt.imshow(imgs[k].T, cmap='Greys', interpolation='none', origin='lower', extent=[0, IMG_WIDTH, 0, IMG_HEIGHT])
+        plt.gca().add_patch(matplotlib.patches.Rectangle((b[k][0]*IMG_HEIGHT,
+                                                         b[k][1]*IMG_HEIGHT),
+                                                         b[k][2]*IMG_HEIGHT,
+                                                         b[k][3]*IMG_HEIGHT, ec='r', fc='none'))
+        plt.show()
+
+'''for bbox in bboxes[i]:
+    print(bbox[0], bbox[1], bbox[2], bbox[3])
+    plt.gca().add_patch(mpatches.Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], ec='r', fc='none'))
+plt.show()'''
 
 
-load_datasets()
-train_neural_network(x)
+
+
+
+
+
+
+
+
+
+
+
