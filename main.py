@@ -5,6 +5,7 @@ from PIL import Image
 import numpy as np
 import datetime
 import math
+from keras.preprocessing.image import ImageDataGenerator
 import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -33,7 +34,8 @@ def max_pool_2x2(x):
 
 
 def batch_norm(Ylogits, is_test, iteration, offset, convolutional=False):
-    exp_moving_avg = tf.train.ExponentialMovingAverage(0.999, iteration)  # adding the iteration prevents from averaging across non-existing iterations
+    exp_moving_avg = tf.train.ExponentialMovingAverage(0.999,
+                                                       iteration)  # adding the iteration prevents from averaging across non-existing iterations
     bnepsilon = 1e-5
     global model_mean, model_var
     if convolutional:
@@ -64,7 +66,7 @@ print("Reading mnist...")
 # sess = tf.InteractiveSession()
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True, validation_size=0)
 
-x = tf.placeholder(tf.float32, shape=[None, 784])
+x = tf.placeholder(tf.float32, shape=[None, 28, 28, 1])
 y_ = tf.placeholder(tf.float32, shape=[None, n_classes])
 is_test = tf.placeholder(tf.bool)
 iteration = tf.placeholder(tf.int32)
@@ -72,7 +74,7 @@ lr = tf.placeholder(tf.float32)
 
 # ===== Model =====
 
-x_input = tf.reshape(x, [-1, 28, 28, 1])
+x_input = x  # tf.reshape(x, [-1, 28, 28, 1])
 # Convolutional Layer 1:
 map_size_1 = 32
 w_conv1 = weight_variable([6, 6, 1, map_size_1])
@@ -120,8 +122,8 @@ update_ema = tf.group(ema1, ema2, ema3, ema4)
 
 # =========
 
-loss_cross_entropy = 100*tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_out))
-train_step = tf.train.AdamOptimizer(lr).minimize(loss_cross_entropy)
+loss_cross_entropy = 100 * tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_out))
+train_step = tf.train.AdamOptimizer().minimize(loss_cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_out, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
@@ -130,32 +132,48 @@ max_learning_rate = 0.02
 min_learning_rate = 0.0001
 decay_speed = 1600
 
+datagen = ImageDataGenerator(
+    featurewise_center=False,  # set input mean to 0 over the dataset
+    samplewise_center=False,  # set each sample mean to 0
+    featurewise_std_normalization=False,  # divide inputs by std of the dataset
+    samplewise_std_normalization=False,  # divide each input by its std
+    zca_whitening=False,  # apply ZCA whitening
+    rotation_range=5,  # randomly rotate images in the range (degrees, 0 to 180)
+    zoom_range=0.1,  # Randomly zoom image
+    width_shift_range=0.5,  # randomly shift images horizontally (fraction of total width)
+    height_shift_range=0.5,  # randomly shift images vertically (fraction of total height)
+    horizontal_flip=False,  # randomly flip images
+    vertical_flip=False)  # randomly flip images
+
+mnist_images_reshaped = np.reshape(mnist.train.images, newshape=[-1, 28, 28, 1])
+datagen.fit(mnist_images_reshaped)
+
 print("Training...")
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     start = datetime.datetime.now()
-    epochs = 1
-    epoch_size = 600
+    epochs = 0
+    cont = 0
     for p in range(epochs):
-        for i in range(epoch_size):
-            batch_font = mnist.train.next_batch(100)
-            learning_rate = \
-                min_learning_rate + (max_learning_rate - min_learning_rate) * math.exp(-(p * 600 + i) / decay_speed)
-            if i % 100 == 0:
-                train_acc = accuracy.eval(feed_dict={x: batch_font[0], y_: batch_font[1],
-                                                     lr: learning_rate, keep_prob: 1.0, is_test: True})
-                print('Step %3d/%d in epoch %d of %d , training accuracy %g'
-                      % (i, epoch_size, p, epochs, train_acc))
-            train_step.run(feed_dict={x: batch_font[0], y_: batch_font[1], lr: learning_rate, keep_prob: 0.75, is_test: False})
-            update_ema.run(feed_dict={x: batch_font[0], y_: batch_font[1], keep_prob: 1.0, iteration: p * 600 + i, is_test: False})
+        for batch_font, batch_labels in datagen.flow(mnist_images_reshaped, mnist.train.labels, batch_size=200):
+            cont += 1
+            if cont % 100 == 0:
+                train_acc = accuracy.eval(feed_dict={x: batch_font, y_: batch_labels,
+                                                     keep_prob: 1.0, is_test: True})
+                print('Epoch %d of %d , training accuracy %g'
+                      % (p, epochs, train_acc))
+            train_step.run(feed_dict={x: batch_font, y_: batch_labels, keep_prob: 0.75, is_test: False})
+            update_ema.run(feed_dict={x: batch_font, y_: batch_labels,
+                                      keep_prob: 1.0, iteration: cont, is_test: False})
     end = datetime.datetime.now()
     print("\nFinished training in", (end - start))
     print("\tTesting...")
     media = []
     for _ in range(20):
         batch = mnist.test.next_batch(500)
-        acc = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0, is_test: True})
+        acc = accuracy.eval(feed_dict={x: np.reshape(batch[0], newshape=[-1, 28, 28, 1]),
+                                       y_: batch[1], keep_prob: 1.0, is_test: True})
         print(100 * acc)
         media.append(acc)
     print('Media: ', 100 * tf.reduce_mean(media).eval())
@@ -186,7 +204,7 @@ graph = tf.Graph()
 
 with graph.as_default():
 
-    X_2 = tf.placeholder('float32', shape=[None, 28 * 28], name='input')
+    X_2 = tf.placeholder('float32', shape=[None, 28, 28, 1], name='input')
     X_IMAGE = tf.reshape(X_2, [-1, 28, 28, 1])
 
     exps0 = tf.constant(variables[0])
@@ -203,28 +221,25 @@ with graph.as_default():
     B_C1 = tf.constant(b_c1)
     LOG_1 = tf.nn.conv2d(X_IMAGE, W_C1, strides=[1, 1, 1, 1], padding='SAME')  # + b_conv1
     Y_NORM = batch_norm_infer(LOG_1, B_C1, exps0, exps1)
-    # Y_NORM = batch_norm_deploy(LOG_1, B_C1, convolutional=True)
     Y_C1 = tf.nn.relu(Y_NORM)
     # Convolutional Layer 2:
     W_C2 = tf.constant(w_c2)
     B_C2 = tf.constant(b_c2)
     LOG_2 = tf.nn.conv2d(Y_C1, W_C2, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv2
-    Y_NORM2 = batch_norm_infer(LOG_2, B_C2, exps2,  exps3)
-    # Y_NORM2 = batch_norm_deploy(LOG_2, B_C2, convolutional=True)
+    Y_NORM2 = batch_norm_infer(LOG_2, B_C2, exps2, exps3)
     Y_C2 = tf.nn.relu(Y_NORM2)
     # Convolutional Layer 3:
     W_C3 = tf.constant(w_c3)
     B_C3 = tf.constant(b_c3)
     LOG_3 = tf.nn.conv2d(Y_C2, W_C3, strides=[1, 2, 2, 1], padding='SAME')  # + b_conv3
-    Y_NORM3 = batch_norm_infer(LOG_3, B_C3, exps4,  exps5)
-    # Y_NORM3 = batch_norm_deploy(LOG_3, B_C3, convolutional=True)
+    Y_NORM3 = batch_norm_infer(LOG_3, B_C3, exps4, exps5)
     Y_C3 = tf.nn.relu(Y_NORM3)
     # Fully connected layer:
     W_FC1 = tf.constant(w_fc1)
     B_FC1 = tf.constant(b_fc1)
     FC_INPUT = tf.reshape(Y_C3, [-1, 7 * 7 * map_size_3])
     LOG_4 = tf.matmul(FC_INPUT, W_FC1)
-    Y_NORM4 = batch_norm_infer(LOG_4, B_FC1, exps6,  exps7)
+    Y_NORM4 = batch_norm_infer(LOG_4, B_FC1, exps6, exps7)
     Y_FC1 = tf.nn.relu(Y_NORM4)
     # Read out layer:
     W_FC2 = tf.constant(w_fc2)
@@ -232,7 +247,6 @@ with graph.as_default():
     Y_OUT = tf.nn.softmax(tf.matmul(Y_FC1, W_FC2) + B_FC2, name='output')
 
     with tf.Session() as sess:
-
         sess.run(tf.global_variables_initializer())
 
         graph_def = graph.as_graph_def()
@@ -241,13 +255,11 @@ with graph.as_default():
         y_train = tf.placeholder('float', [None, 10])
         correct_prediction = tf.equal(tf.argmax(Y_OUT, 1), tf.argmax(y_train, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
-        # print("\nSave file with acc = %g" % accuracy.eval({x_2: mnist.test.images, y_train: mnist.test.labels}, sess))
         partials = []
-        for _ in range(20):
-            batch = mnist.test.next_batch(500)
-            res = accuracy.eval(feed_dict={X_2: batch[0], y_train: batch[1]})
+        for _ in range(10):
+            batch = mnist.test.next_batch(1000)
+            res = accuracy.eval(feed_dict={X_2: np.reshape(batch[0], newshape=[-1, 28, 28, 1]),
+                                           y_train: batch[1]})
             partials.append(res)
         print(partials)
         print("Avg:", tf.reduce_mean(partials).eval())
-
-
