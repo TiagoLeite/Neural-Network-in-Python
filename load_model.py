@@ -10,9 +10,6 @@ names_char = np.arange(0, 62)
 image_size = 32, 32
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-# print("Reading test mnist...")
-# mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
-
 
 def read_data(start, end, pattern):
     formatted_data = [[], []]
@@ -29,50 +26,82 @@ def read_data(start, end, pattern):
     return formatted_data
 
 
-with tf.gfile.FastGFile('model_char/mnist_model_graph.pb', 'rb') as f:
+def read_tensor_from_image_file(file_name, input_height=299, input_width=299,
+                                input_mean=0, input_std=255):
+    input_name = "file_reader"
+    output_name = "normalized"
+    file_reader = tf.read_file(file_name, input_name)
+    if file_name.endswith(".png"):
+        image_reader = tf.image.decode_png(file_reader, channels=3,
+                                           name='png_reader')
+    elif file_name.endswith(".gif"):
+        image_reader = tf.squeeze(tf.image.decode_gif(file_reader,
+                                                      name='gif_reader'))
+    elif file_name.endswith(".bmp"):
+        image_reader = tf.image.decode_bmp(file_reader, name='bmp_reader')
+    else:
+        image_reader = tf.image.decode_jpeg(file_reader, channels=3,
+                                            name='jpeg_reader')
+    float_caster = tf.cast(image_reader, tf.float32)
+    dims_expander = tf.expand_dims(float_caster, 0);
+    resized = tf.image.resize_bilinear(dims_expander, [input_height, input_width])
+    normalized = tf.divide(tf.subtract(resized, [input_mean]), [input_std])
+    sess = tf.Session()
+    result = sess.run(normalized)
+
+    return result
+
+
+with tf.gfile.FastGFile('model/retrained_graph.pb', 'rb') as f:
     graph_def = tf.GraphDef()
     graph_def.ParseFromString(f.read())
     tf.import_graph_def(graph_def, name="my_graph")
 
 with tf.Session() as sess:
-    # for i in tf.get_default_graph().get_operations():
-        # print(i.name)
-    '''image = Image.open('digit.png').convert('L')
-    # image = image.resize((128, 128))
-    # image.show()
-    array_image = np.array(image)
-    array_image = np.reshape(array_image, [1, 28*28])
-    print(array_image)
-    for k in range(array_image[0].size):
-        if array_image[0][k] > 128:
-            array_image[0][k] = 0
-        else:
-            array_image[0][k] = 1
-    print(array_image)'''
-    print("\tTesting...")
-    mean = []
-    path = 'handwritten_v2/%d/train_%d/%d.png'
-    softmax_tensor = sess.graph.get_tensor_by_name('my_graph/output:0')
-    input_tensor = sess.graph.get_tensor_by_name('my_graph/input:0')
-    # print(softmax_tensor, input_tensor)
-    y_ = tf.placeholder('float32', [None, 62])
-    correct_prediction = tf.equal(tf.argmax(softmax_tensor, 1), tf.argmax(y_, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    for k in range(100):
-        batch_hand = read_data(3600 + k * 2, 3600 + (k + 1) * 2, path)
-        # res = accuracy.eval(feed_dict={x: batch_hand[0], y_: batch_hand[1], keep_prob: 1.0, is_test: True})
-        # prediction = sess.run(softmax_tensor, feed_dict={'my_graph/input:0': batch_hand})
-        # mean.append(res)
-        acc = sess.run(accuracy, feed_dict={'my_graph/input:0': batch_hand[0], y_: batch_hand[1]})
-        print("Testing accuracy: ", acc)
-        mean.append(acc)
-    print("=========\nMean accuracy   : ", tf.reduce_mean(mean).eval())
-    # prediction = sess.run(softmax_tensor, feed_dict={'my_graph/input:0': array_image})
-    # acc = sess.run(accuracy, feed_dict={'my_graph/input:0': batch[0], y_: batch[1]})
-    # print(prediction)
+    for i in tf.get_default_graph().get_operations():
+        print(i.name)
 
-    ''' y_train = tf.placeholder('float32', [None, 10])
-    correct_prediction = tf.equal(tf.argmax(softmax_tensor, 1), tf.argmax(y_train, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float32'))
-    res = accuracy.eval(feed_dict={batch[0], batch[1]})
-    print(res)'''
+    print("\tTesting...")
+
+    output_tensor = sess.graph.get_tensor_by_name('my_graph/final_result:0')
+
+    input_tensor = sess.graph.get_tensor_by_name('my_graph/input:0')
+
+    print(output_tensor, input_tensor)
+
+    image = read_tensor_from_image_file('flower.jpg',
+                                        input_height=224,
+                                        input_width=224,
+                                        input_mean=128,
+                                        input_std=128)
+
+    # image = Image.open("flower.jpg")
+
+    # image = image.resize((224, 224), Image.ANTIALIAS)
+
+    # image.save('imago.jpg')
+
+    # image = np.reshape(image, [-1, 224, 224, 3])
+
+    # im = Image.fromarray(np.reshape(image, [224, 224, 3]))
+
+    # im.save("your_file.jpeg")
+
+    print(np.shape(image))
+
+    acc = sess.run(output_tensor, feed_dict={'my_graph/input:0': image})
+
+    print(acc)
+
+    index = np.argmax(acc, axis=1)
+
+    print('index:', index[0])
+
+    '''
+    class_names = ["bluebell", "buttercup", "coltsfoot", "cowslip", "crocus",
+                   "daffodil", "daisy", "dandelion", "fritillary", "iris", "lilyvalley", "pansy",
+                   "snowdrop", "sunflower", "tigerlily", "tulip", "windflower"] '''
+
+    class_names = ["daisy", "dandelion", "roses", "sunflowers", "tulips"]
+
+    print(class_names[index[0]])
